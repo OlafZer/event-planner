@@ -197,6 +197,20 @@ def load_user(user_id):
     return AdminUser.query.get(int(user_id))
 
 
+class AccessCodeForm(FlaskForm):
+    """Simple landing form for guests to enter their 8-character invite code."""
+
+    access_code = StringField(
+        "Zugangscode",
+        validators=[
+            DataRequired(message="Bitte geben Sie Ihren Code ein."),
+            Regexp(r"^[A-Za-z0-9]{8}$", message="Bitte einen gültigen 8-stelligen Code eingeben."),
+        ],
+        render_kw={"placeholder": "Z. B. A1B2C3D4", "maxlength": 8},
+    )  # Enforce the expected invite code shape right on the landing page.
+    submit = SubmitField("Zugang prüfen")  # Trigger invite code lookup.
+
+
 class InviteForm(FlaskForm):
     """Form presented to guests based on their unique code."""
 
@@ -302,12 +316,19 @@ def enforce_https_headers():
         return response
 
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    """Landing page instructing users to use their invitation link."""
+    """Landing page asking guests for their invite code and redirecting them to the event form."""
 
-    # Render a simple landing page encouraging invitees to follow their personalized URL.
-    return render_template("index.html")
+    form = AccessCodeForm()
+    if form.validate_on_submit():
+        code = form.access_code.data.strip().upper()
+        guest = GuestUnit.query.filter_by(invite_code=code).first()
+        if guest:
+            return redirect(url_for("invite", event_id=guest.event_id, code=guest.invite_code))
+        flash("Dieser Zugangscode wurde nicht gefunden. Bitte prüfen Sie Ihre Eingabe.", "danger")
+
+    return render_template("index.html", form=form)
 
 
 @app.route("/event/<int:event_id>/invite/<code>", methods=["GET", "POST"])
