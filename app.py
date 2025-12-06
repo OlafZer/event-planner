@@ -1,9 +1,9 @@
 """Main Flask application for secure party invitation management."""
 
-import csv
-import hashlib
-import os
-from typing import Iterable, Optional
+import os  # Import os to access environment variables for configuration.
+import csv  # Import csv to parse admin-uploaded guest seed files.
+from datetime import datetime  # Import datetime for timestamping access logs.
+from typing import Optional as TypingOptional  # Alias Optional to avoid clashing with WTForms validator.
 
 from dotenv import load_dotenv
 from flask import (
@@ -153,7 +153,7 @@ def load_user(user_id):
 
 
 def create_admin_user(
-    email: str, password: str, role: str = "event_admin", event: Optional[Event] = None
+    email: str, password: str, role: str = "event_admin", event: TypingOptional[Event] = None
 ) -> AdminUser:
     secret = pyotp.random_base32()
     password_hash = generate_password_hash(password)
@@ -170,6 +170,20 @@ def create_admin_user(
 
 
 # Forms
+
+
+class AccessCodeForm(FlaskForm):
+    """Simple landing form for guests to enter their 8-character invite code."""
+
+    access_code = StringField(
+        "Zugangscode",
+        validators=[
+            DataRequired(message="Bitte geben Sie Ihren Code ein."),
+            Regexp(r"^[A-Za-z0-9]{8}$", message="Bitte einen gültigen 8-stelligen Code eingeben."),
+        ],
+        render_kw={"placeholder": "Z. B. A1B2C3D4", "maxlength": 8},
+    )  # Enforce the expected invite code shape right on the landing page.
+    submit = SubmitField("Zugang prüfen")  # Trigger invite code lookup.
 
 
 class InviteForm(FlaskForm):
@@ -247,19 +261,32 @@ class GuestForm(FlaskForm):
 # Routes
 
 
-@app.before_request
-def enforce_https_headers():
-    @app.after_request
-    def set_headers(response):
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        return response
+@app.after_request
+def set_security_headers(response):
+    """Add security headers to every response for basic hardening."""
+
+    # Instruct browsers to block content sniffing attacks.
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # Prevent the site from being embedded in iframes to mitigate clickjacking.
+    response.headers["X-Frame-Options"] = "DENY"
+    # Enable cross-site scripting filter in older browsers.
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    return response
 
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return render_template("index.html")
+    """Landing page asking guests for their invite code and redirecting them to the event form."""
+
+    form = AccessCodeForm()
+    if form.validate_on_submit():
+        code = form.access_code.data.strip().upper()
+        guest = GuestUnit.query.filter_by(invite_code=code).first()
+        if guest:
+            return redirect(url_for("invite", event_id=guest.event_id, code=guest.invite_code))
+        flash("Dieser Zugangscode wurde nicht gefunden. Bitte prüfen Sie Ihre Eingabe.", "danger")
+
+    return render_template("index.html", form=form)
 
 
 @app.route("/event/<int:event_id>/invite/<code>", methods=["GET", "POST"])
@@ -314,6 +341,13 @@ def admin_login():
             return redirect(url_for("admin_totp"))
         flash("Ungültige Zugangsdaten", "danger")
     return render_template("admin_login.html", form=form)
+
+
+@app.route("/login/admin", methods=["GET", "POST"])
+def admin_login_alias():
+    """Backward-compatible alias that forwards to the admin login page."""
+
+    return admin_login()
 
 
 @app.route("/admin/totp", methods=["GET", "POST"])
