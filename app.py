@@ -300,20 +300,17 @@ class CsvUploadForm(FlaskForm):
     submit = SubmitField("Import starten")  # Trigger the CSV processing.
 
 
-@app.before_request
-def enforce_https_headers():
+@app.after_request
+def set_security_headers(response):
     """Add security headers to every response for basic hardening."""
 
-    # Only set headers after the response object exists; Flask handles attachment transparently.
-    @app.after_request
-    def set_headers(response):
-        # Instruct browsers to block content sniffing attacks.
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        # Prevent the site from being embedded in iframes to mitigate clickjacking.
-        response.headers["X-Frame-Options"] = "DENY"
-        # Enable cross-site scripting filter in older browsers.
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        return response
+    # Instruct browsers to block content sniffing attacks.
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # Prevent the site from being embedded in iframes to mitigate clickjacking.
+    response.headers["X-Frame-Options"] = "DENY"
+    # Enable cross-site scripting filter in older browsers.
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    return response
 
 
 @app.route("/", methods=["GET", "POST"])
