@@ -380,6 +380,13 @@ def admin_login():
     return render_template("admin_login.html", form=form)
 
 
+@app.route("/login/admin", methods=["GET", "POST"])
+def admin_login_alias():
+    """Backward-compatible alias that forwards to the admin login page."""
+
+    return admin_login()
+
+
 @app.route("/admin/totp", methods=["GET", "POST"])
 def admin_totp():
     """Second step of admin authentication verifying the TOTP code."""
