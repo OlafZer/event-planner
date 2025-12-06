@@ -48,44 +48,90 @@
 </div>
 
 {% if active_event %}
-<div class="mb-4">
-    <h4>CSV Import für {{ active_event.name }}</h4>
-    <form method="post" enctype="multipart/form-data">
-        {{ upload_form.hidden_tag() }}
-        {{ upload_form.event_id(value=active_event.id, type='hidden') }}
+  <div class="mb-4">
+      <h4>CSV Import für {{ active_event.name }}</h4>
+      <form method="post" enctype="multipart/form-data">
+          {{ upload_form.hidden_tag() }}
+          {{ upload_form.event_id(value=active_event.id, type='hidden') }}
         <div class="mb-3">
             {{ upload_form.file.label(class_='form-label') }}
             {{ upload_form.file(class_='form-control') }}
         </div>
-        {{ upload_form.submit(class_='btn btn-success') }}
-        <a class="btn btn-link" href="{{ url_for('download_template', event_id=active_event.id) }}">CSV Template herunterladen</a>
-    </form>
-</div>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Einheit</th>
-            <th>Code</th>
-            <th>Max Personen</th>
-            <th>Status</th>
-            <th>Zusagen</th>
-            <th>Email</th>
-            <th>Notify</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for guest in guests %}
-        <tr>
-            <td>{{ guest.name }}</td>
-            <td>{{ guest.invite_code }}</td>
-            <td>{{ guest.max_persons }}</td>
-            <td>{{ guest.status }}</td>
-            <td>{{ guest.confirmed_persons }}</td>
-            <td>{{ guest.email }}</td>
-            <td>{{ 'Ja' if guest.notify_admin else 'Nein' }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% endif %}
+          {{ upload_form.submit(class_='btn btn-success') }}
+          <a class="btn btn-link" href="{{ url_for('download_template', event_id=active_event.id) }}">CSV Template herunterladen</a>
+      </form>
+  </div>
+  <div class="card mb-4">
+      <div class="card-body">
+          <h4 class="card-title">Gast manuell anlegen</h4>
+          <form method="post">
+              {{ guest_form.hidden_tag() }}
+              <div class="row g-3">
+                  <div class="col-md-6">
+                      {{ guest_form.first_name.label(class_='form-label') }}
+                      {{ guest_form.first_name(class_='form-control') }}
+                  </div>
+                  <div class="col-md-6">
+                      {{ guest_form.last_name.label(class_='form-label') }}
+                      {{ guest_form.last_name(class_='form-control') }}
+                  </div>
+                  <div class="col-md-6">
+                      {{ guest_form.category.label(class_='form-label') }}
+                      {{ guest_form.category(class_='form-select') }}
+                  </div>
+                  <div class="col-md-6">
+                      {{ guest_form.max_persons.label(class_='form-label') }}
+                      {{ guest_form.max_persons(class_='form-control') }}
+                  </div>
+                  <div class="col-md-6">
+                      {{ guest_form.invite_code.label(class_='form-label') }}
+                      {{ guest_form.invite_code(class_='form-control') }}
+                  </div>
+                  <div class="col-md-6">
+                      {{ guest_form.email.label(class_='form-label') }}
+                      {{ guest_form.email(class_='form-control') }}
+                      <div class="form-text">E-Mail ist optional.</div>
+                  </div>
+                  <div class="col-md-6">
+                      {{ guest_form.telephone.label(class_='form-label') }}
+                      {{ guest_form.telephone(class_='form-control') }}
+                  </div>
+                  <div class="col-md-6 form-check mt-4">
+                      {{ guest_form.notify_admin(class_='form-check-input') }}
+                      {{ guest_form.notify_admin.label(class_='form-check-label') }}
+                  </div>
+              </div>
+              <div class="mt-3">
+                  {{ guest_form.submit_guest(class_='btn btn-primary') }}
+              </div>
+          </form>
+      </div>
+  </div>
+  <table class="table table-striped">
+      <thead>
+          <tr>
+              <th>Vorname</th>
+              <th>Nachname</th>
+              <th>Kategorie</th>
+              <th>Max Personen</th>
+              <th>Email (optional)</th>
+              <th>Telefon</th>
+              <th>Benachrichtigung</th>
+          </tr>
+      </thead>
+      <tbody>
+          {% for guest in guests %}
+          <tr>
+              <td>{{ guest.first_name }}</td>
+              <td>{{ guest.last_name or '' }}</td>
+              <td>{{ guest.category }}</td>
+              <td>{{ guest.max_persons }}</td>
+              <td>{{ guest.email or '—' }}</td>
+              <td>{{ guest.telephone or '—' }}</td>
+              <td>{{ 'Ja' if guest.notify_admin else 'Nein' }}</td>
+          </tr>
+          {% endfor %}
+      </tbody>
+  </table>
+  {% endif %}
 {% endblock %}
