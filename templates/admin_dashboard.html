@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Admin Übersicht</h2>
+
+{% if current_user.is_super_admin %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h4 class="card-title">Neues Event anlegen</h4>
+        <form method="post">
+            {{ event_form.hidden_tag() }}
+            <div class="mb-3">
+                {{ event_form.name.label(class_='form-label') }}
+                {{ event_form.name(class_='form-control') }}
+            </div>
+            <div class="mb-3">
+                {{ event_form.description.label(class_='form-label') }}
+                {{ event_form.description(class_='form-control') }}
+            </div>
+            {{ event_form.submit_event(class_='btn btn-primary') }}
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h4 class="card-title">Event-Auswahl</h4>
+        {% if available_events %}
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label class="col-form-label" for="event_id">Event</label>
+            </div>
+            <div class="col-auto">
+                <select class="form-select" id="event_id" name="event_id">
+                    {% for event in available_events %}
+                    <option value="{{ event.id }}" {% if active_event and active_event.id == event.id %}selected{% endif %}>{{ event.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-secondary" type="submit">Anzeigen</button>
+            </div>
+        </form>
+        {% else %}
+        <p class="mb-0">Noch keine Events vorhanden. Bitte als Super-Admin eines erstellen.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if active_event %}
+<div class="mb-4">
+    <h4>CSV Import für {{ active_event.name }}</h4>
+    <form method="post" enctype="multipart/form-data">
+        {{ upload_form.hidden_tag() }}
+        {{ upload_form.event_id(value=active_event.id, type='hidden') }}
+        <div class="mb-3">
+            {{ upload_form.file.label(class_='form-label') }}
+            {{ upload_form.file(class_='form-control') }}
+        </div>
+        {{ upload_form.submit(class_='btn btn-success') }}
+        <a class="btn btn-link" href="{{ url_for('download_template', event_id=active_event.id) }}">CSV Template herunterladen</a>
+    </form>
+</div>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Einheit</th>
+            <th>Code</th>
+            <th>Max Personen</th>
+            <th>Status</th>
+            <th>Zusagen</th>
+            <th>Email</th>
+            <th>Notify</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for guest in guests %}
+        <tr>
+            <td>{{ guest.name }}</td>
+            <td>{{ guest.invite_code }}</td>
+            <td>{{ guest.max_persons }}</td>
+            <td>{{ guest.status }}</td>
+            <td>{{ guest.confirmed_persons }}</td>
+            <td>{{ guest.email }}</td>
+            <td>{{ 'Ja' if guest.notify_admin else 'Nein' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}

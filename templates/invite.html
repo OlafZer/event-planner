@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <h2 class="card-title">Einladung für {{ guest.name }}</h2>
+        <p class="card-text">Maximal eingeladene Personen: {{ guest.max_persons }}</p>
+        <form method="post">
+            {{ form.hidden_tag() }}
+            <div class="mb-3">
+                {{ form.status.label(class_='form-label') }}
+                {{ form.status(class_='form-select') }}
+            </div>
+            <div class="mb-3">
+                {{ form.confirmed_persons.label(class_='form-label') }}
+                {{ form.confirmed_persons(class_='form-control', max=guest.max_persons) }}
+                <div class="form-text">Bitte maximal {{ guest.max_persons }} Personen eintragen.</div>
+            </div>
+            <div class="mb-3">
+                {{ form.notes.label(class_='form-label') }}
+                {{ form.notes(class_='form-control') }}
+            </div>
+            {{ form.submit(class_='btn btn-primary') }}
+        </form>
+    </div>
+</div>
+{% endblock %}

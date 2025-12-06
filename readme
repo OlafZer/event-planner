@@ -1,2 +1,19 @@
-#codex_Timer
-# erste Versuche mit codex von OpenAI und GitHub
+# Secure Multi-Event Invitation App
+
+Dieses Projekt liefert eine Beispielimplementierung einer mandantenfähigen, hochsicheren Event-Anmelde-Webanwendung für Strato Hosting Plus mit Flask, SQLAlchemy und Zwei-Faktor-Authentifizierung.
+
+## Kern-Features
+- Mehrere Events (Mandanten) mit strikter Datenisolation per `event_id`.
+- Hierarchische Admin-Rollen: Super-Admin (alle Events verwalten) und Event-Admin (nur das eigene Event).
+- Einladungseinheiten mit achtstelligen Codes pro Event und dynamischer Personenanzahl.
+- Feste Statusoptionen: Save the Date, Zusage, Absage, Unsicher.
+- Zugriffstracking pro Event/Code und CSV-Import pro Event (nur Super-Admin legt Events an).
+- 2FA-geschützter Admin-Login, CSRF-Schutz und .env-basierte Geheimnisse.
+
+## Dateien
+- `app.py` – Flask-App mit mandantenfähigen Modellen, Formularen, 2FA-Flow und eventbezogenem CSV-Import.
+- `db_schema.sql` – SQL-Skript für MariaDB-Tabellen (Events, Admins, Gäste, Logs).
+- `requirements.txt` – Python-Abhängigkeiten.
+- `STRATO_DEPLOY.md` – Schritt-für-Schritt-Anleitung für Strato-Deployment (Hosting Plus, WSGI).
+- `templates/` – HTML-Templates für Gäste- und Admin-Ansichten mit Event-Auswahl.
+- `.gitignore` – Schließt Geheimnisse und temporäre Dateien aus.

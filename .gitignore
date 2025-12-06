@@ -1,0 +1,34 @@
+# Python cache and build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment variables and secrets
+.env
+.env.*
+secrets.json
+*.key
+*.pem
+
+# Logs and temp files
+*.log
+*.sqlite3
+instance/
+*.tmp
+.DS_Store
+
+# IDE and editor settings
+.vscode/
+.idea/
+*.swp
