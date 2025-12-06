@@ -2,6 +2,7 @@
 
 import os  # Import os to access environment variables for configuration.
 import csv  # Import csv to parse admin-uploaded guest seed files.
+import hashlib  # Import hashlib for invite code hashing.
 from datetime import datetime  # Import datetime for timestamping access logs.
 from typing import Optional as TypingOptional  # Alias Optional to avoid clashing with WTForms validator.
 
@@ -31,7 +32,7 @@ from flask_wtf.file import FileAllowed, FileRequired
 import pyotp
 from werkzeug.security import check_password_hash, generate_password_hash
 from wtforms import BooleanField, FileField, IntegerField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional as OptionalValidator
+from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional as OptionalValidator, Regexp
 
 load_dotenv()
 
@@ -281,9 +282,10 @@ def index():
     form = AccessCodeForm()
     if form.validate_on_submit():
         code = form.access_code.data.strip().upper()
-        guest = GuestUnit.query.filter_by(invite_code=code).first()
+        code_hash = hash_invite_code(code)
+        guest = Guest.query.filter_by(invite_code_hash=code_hash).first()
         if guest:
-            return redirect(url_for("invite", event_id=guest.event_id, code=guest.invite_code))
+            return redirect(url_for("invite", event_id=guest.event_id, code=code))
         flash("Dieser Zugangscode wurde nicht gefunden. Bitte prüfen Sie Ihre Eingabe.", "danger")
 
     return render_template("index.html", form=form)
