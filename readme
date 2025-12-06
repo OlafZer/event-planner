@@ -50,3 +50,6 @@ Folge diesen Schritten, um das Projekt in ein anders benanntes Git-Repository zu
    - CI/CD-Configs, Deploy-Skripte (WSGI/CGI-Pfade) und Dokumentation, die den alten Namen enthalten, auf den neuen Namen aktualisieren.
 
 **Namenswahl-Tipps:** Verwende einen kurzen, sprechenden Kebab-Case-Namen wie `event-planner`, `secure-event-invites` oder `event-guest-manager`.
+#event Planner
+# erste Versuche mit codex von OpenAI und GitHub
+# Dieser erste Versuch soll einen vollständigen, sicherheitsorientierten Entwurf für eine mandantenfähige Event-Anmelde-Anwendung auf Basis von Flask, SQLAlchemy und MariaDB, ausgelegt für Strato Hosting Plus ergeben.
