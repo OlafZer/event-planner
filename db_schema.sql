@@ -68,7 +68,7 @@ CREATE TABLE admins (
     totp_secret VARCHAR(64) NOT NULL, -- Secret für TOTP-basierte 2FA
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_admin_event FOREIGN KEY (assigned_event_id) REFERENCES events(id) ON DELETE SET NULL
+    CONSTRAINT fk_admins_assigned_event FOREIGN KEY (assigned_event_id) REFERENCES events(id) ON DELETE SET NULL
 );
 
 CREATE TABLE guest_units (
