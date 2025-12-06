@@ -83,7 +83,7 @@ CREATE TABLE guest_units (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_code_per_event (event_id, invite_code), -- Code darf pro Event nur einmal vorkommen
-    CONSTRAINT fk_guest_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+    CONSTRAINT fk_guest_units_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
 );
 
 CREATE TABLE access_logs (
