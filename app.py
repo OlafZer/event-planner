@@ -3,7 +3,7 @@
 import os  # Import os to access environment variables for configuration.
 import csv  # Import csv to parse admin-uploaded guest seed files.
 from datetime import datetime  # Import datetime for timestamping access logs.
-from typing import Optional  # Import Optional for explicit type hints.
+from typing import Optional as TypingOptional  # Alias Optional to avoid clashing with WTForms validator.
 
 from dotenv import load_dotenv  # Import load_dotenv to read .env secrets safely.
 from flask import (
@@ -166,7 +166,7 @@ class AdminUser(UserMixin, db.Model):
 
 
 def create_admin_user(
-    email: str, password: str, role: str = "event_admin", event: Optional[Event] = None
+    email: str, password: str, role: str = "event_admin", event: TypingOptional[Event] = None
 ) -> AdminUser:
     """Utility helper to create a new admin with hashed password, random TOTP secret, and optional tenant binding."""
 
@@ -716,7 +716,7 @@ def admin_login():
     token = request.form.get("token", "")
 
     # Admin anhand der E-Mail laden
-    admin: Optional[Admin] = Admin.query.filter_by(email=email).first()
+    admin: TypingOptional[Admin] = Admin.query.filter_by(email=email).first()
     if not admin:
         return jsonify({"error": "Unknown user"}), 401  # Nutzer nicht gefunden
 
@@ -739,14 +739,14 @@ def admin_login():
 
 # Helper zur Zugriffsbeschränkung basierend auf Rolle und Event-Zuordnung
 
-def require_admin(role: str, event_id: Optional[int] = None) -> Optional[Admin]:
+def require_admin(role: str, event_id: TypingOptional[int] = None) -> TypingOptional[Admin]:
     """Gibt den Admin zurück, wenn Rolle passt und Event-Isolation erfüllt ist."""
 
     admin_id = session.get("admin_id")  # Session-Admin-ID lesen
     if not admin_id:
         return None  # Nicht eingeloggt
 
-    admin: Optional[Admin] = Admin.query.get(admin_id)  # Admin laden
+    admin: TypingOptional[Admin] = Admin.query.get(admin_id)  # Admin laden
     if not admin:
         return None  # Ungültige Session
 
