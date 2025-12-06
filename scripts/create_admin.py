@@ -8,9 +8,17 @@ Voraussetzung:
 """
 
 import getpass
+import sys
+from pathlib import Path
 
 import pyotp
 from werkzeug.security import generate_password_hash
+
+# Ensure the project root (containing app.py) is importable when running from the
+# scripts/ directory.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from app import app, db, AdminUser, Event
 
