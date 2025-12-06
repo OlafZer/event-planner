@@ -1,3 +1,55 @@
+# Secure Multi-Event Invitation App
+
+Dieses Projekt liefert eine Beispielimplementierung einer mandantenfähigen, hochsicheren Event-Anmelde-Webanwendung für Strato Hosting Plus mit Flask, SQLAlchemy und Zwei-Faktor-Authentifizierung.
+
+## Kern-Features
+- Mehrere Events (Mandanten) mit strikter Datenisolation per `event_id`.
+- Hierarchische Admin-Rollen: Super-Admin (alle Events verwalten) und Event-Admin (nur das eigene Event).
+- Einladungseinheiten mit achtstelligen Codes pro Event und dynamischer Personenanzahl.
+- Feste Statusoptionen: Save the Date, Zusage, Absage, Unsicher.
+- Zugriffstracking pro Event/Code und CSV-Import pro Event (nur Super-Admin legt Events an).
+- 2FA-geschützter Admin-Login, CSRF-Schutz und .env-basierte Geheimnisse.
+
+## Dateien
+- `app.py` – Flask-App mit mandantenfähigen Modellen, Formularen, 2FA-Flow und eventbezogenem CSV-Import.
+- `db_schema.sql` – SQL-Skript für MariaDB-Tabellen (Events, Admins, Gäste, Logs).
+- `requirements.txt` – Python-Abhängigkeiten.
+- `STRATO_DEPLOY.md` – Schritt-für-Schritt-Anleitung für Strato-Deployment (Hosting Plus, WSGI).
+- `templates/` – HTML-Templates für Gäste- und Admin-Ansichten mit Event-Auswahl.
+- `.gitignore` – Schließt Geheimnisse und temporäre Dateien aus.
+
+## Repository-Umbenennung (z. B. von `codex_Timer` zu `event-planner`)
+Folge diesen Schritten, um das Projekt in ein anders benanntes Git-Repository zu verschieben oder das vorhandene umzubenennen:
+
+1. **Remote auf der Git-Plattform umbenennen**
+   - Öffne die Repository-Einstellungen (z. B. auf GitHub) und benenne `codex_Timer` in `event-planner` um. Die Plattform erzeugt in der Regel Weiterleitungen für alte URLs.
+
+2. **Lokalen Ordner umbenennen**
+   ```bash
+   cd /workspace
+   mv codex_Timer event-planner
+   cd event-planner
+   ```
+
+3. **Remote-URL anpassen**
+   ```bash
+   git remote set-url origin <neue-remote-url-zum-umbenannten-repo>
+   git remote -v   # Kontrolle
+   ```
+
+4. **Falls neu gestartet wird** (kein Git-Repo vorhanden)
+   ```bash
+   git init
+   git remote add origin <neue-remote-url>
+   git add .
+   git commit -m "Initial commit"
+   git push -u origin main
+   ```
+
+5. **Verweise prüfen**
+   - CI/CD-Configs, Deploy-Skripte (WSGI/CGI-Pfade) und Dokumentation, die den alten Namen enthalten, auf den neuen Namen aktualisieren.
+
+**Namenswahl-Tipps:** Verwende einen kurzen, sprechenden Kebab-Case-Namen wie `event-planner`, `secure-event-invites` oder `event-guest-manager`.
 #event Planner
 # erste Versuche mit codex von OpenAI und GitHub
 # Dieser erste Versuch soll einen vollständigen, sicherheitsorientierten Entwurf für eine mandantenfähige Event-Anmelde-Anwendung auf Basis von Flask, SQLAlchemy und MariaDB, ausgelegt für Strato Hosting Plus ergeben.
