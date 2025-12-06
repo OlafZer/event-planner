@@ -1,2 +1,3 @@
 #event Planner
 # erste Versuche mit codex von OpenAI und GitHub
+# Dieser erste Versuch soll einen vollständigen, sicherheitsorientierten Entwurf für eine mandantenfähige Event-Anmelde-Anwendung auf Basis von Flask, SQLAlchemy und MariaDB, ausgelegt für Strato Hosting Plus ergeben.
