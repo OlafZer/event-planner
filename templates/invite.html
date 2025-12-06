@@ -2,7 +2,7 @@
 {% block content %}
 <div class="card">
     <div class="card-body">
-        <h2 class="card-title">Einladung für {{ guest.name }}</h2>
+        <h2 class="card-title">Einladung für {{ guest.first_name }}{% if guest.last_name %} {{ guest.last_name }}{% endif %}</h2>
         <p class="card-text">Maximal eingeladene Personen: {{ guest.max_persons }}</p>
         <form method="post">
             {{ form.hidden_tag() }}
