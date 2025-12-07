@@ -28,7 +28,7 @@ name,nachname,kategorie,max_persons,invite_code,email,telephone,notify_admin
 
 - `name`: Pflichtfeld für den Vornamen.
 - `nachname`: Optionaler Nachname.
-- `kategorie`: Eine der erlaubten Kategorien aus der Anwendung (z. B. `vip`, `standard`).
+- `kategorie`: Eine der erlaubten Kategorien aus der Anwendung (Familie, Nachbarn, Freunde, Arbeit Birgit, Arbeit Olaf, Volleyball, Toastmasters).
 - `max_persons`: Ganzzahlige maximale Personenzahl für diese Einladung.
 - `invite_code`: Achtstelliger, eindeutig pro Event gültiger Code (z. B. `AB12CD34`).
 - `email`: Optionale Kontaktadresse.

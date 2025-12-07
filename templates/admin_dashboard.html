@@ -16,6 +16,19 @@
                 {{ event_form.description.label(class_='form-label') }}
                 {{ event_form.description(class_='form-control') }}
             </div>
+            <div class="mb-3">
+                {{ event_form.event_date.label(class_='form-label') }}
+                {{ event_form.event_date(class_='form-control') }}
+            </div>
+            <div class="mb-3">
+                {{ event_form.invitation_text.label(class_='form-label') }}
+                {{ event_form.invitation_text(class_='form-control', rows='4') }}
+            </div>
+            <div class="mb-3">
+                {{ event_form.background_image_url.label(class_='form-label') }}
+                {{ event_form.background_image_url(class_='form-control') }}
+                <div class="form-text">Optionales Hintergrundbild, z. B. ein Unsplash-Link.</div>
+            </div>
             {{ event_form.submit_event(class_='btn btn-primary') }}
         </form>
     </div>
@@ -48,6 +61,40 @@
 </div>
 
 {% if active_event %}
+  <div class="row row-cols-1 row-cols-md-4 g-3 mb-4">
+      <div class="col">
+          <div class="card text-bg-primary">
+              <div class="card-body">
+                  <h6 class="text-uppercase">Gäste gesamt</h6>
+                  <p class="fs-4 mb-0">{{ stats.total }}</p>
+              </div>
+          </div>
+      </div>
+      <div class="col">
+          <div class="card text-bg-success">
+              <div class="card-body">
+                  <h6 class="text-uppercase">Zusagen (Pax)</h6>
+                  <p class="fs-4 mb-0">{{ stats.pax_yes }}</p>
+              </div>
+          </div>
+      </div>
+      <div class="col">
+          <div class="card text-bg-danger">
+              <div class="card-body">
+                  <h6 class="text-uppercase">Absagen</h6>
+                  <p class="fs-4 mb-0">{{ stats.declined }}</p>
+              </div>
+          </div>
+      </div>
+      <div class="col">
+          <div class="card text-bg-warning">
+              <div class="card-body">
+                  <h6 class="text-uppercase">Ausstehend</h6>
+                  <p class="fs-4 mb-0">{{ stats.open }}</p>
+              </div>
+          </div>
+      </div>
+  </div>
   <div class="mb-4">
       <h4>CSV Import für {{ active_event.name }}</h4>
       <form method="post" enctype="multipart/form-data">
@@ -117,6 +164,7 @@
               <th>Email (optional)</th>
               <th>Telefon</th>
               <th>Benachrichtigung</th>
+              <th class="text-end">Aktionen</th>
           </tr>
       </thead>
       <tbody>
@@ -129,9 +177,37 @@
               <td>{{ guest.email or '—' }}</td>
               <td>{{ guest.telephone or '—' }}</td>
               <td>{{ 'Ja' if guest.notify_admin else 'Nein' }}</td>
+              <td class="text-end">
+                  {% if guest.email %}
+                  <form method="post" action="{{ url_for('send_guest_email', event_id=active_event.id, guest_id=guest.id) }}" class="d-inline">
+                      {{ action_form.csrf_token }}
+                      <input type="hidden" name="guest_id" value="{{ guest.id }}">
+                      <input type="hidden" name="action" value="email">
+                      <button type="submit" class="btn btn-sm btn-outline-primary">E-Mail senden</button>
+                  </form>
+                  {% endif %}
+                  <button type="button" class="btn btn-sm btn-outline-secondary copy-text" data-text="Hallo {{ guest.first_name }}, hier ist deine Einladung für {{ active_event.name }}: {{ url_for('invite', event_id=active_event.id, code=guest.invite_code_hash, _external=True) }}">
+                    Text kopieren
+                  </button>
+                  <a class="btn btn-sm btn-outline-success" href="{{ url_for('download_guest_pdf', event_id=active_event.id, guest_id=guest.id) }}">PDF laden</a>
+              </td>
           </tr>
           {% endfor %}
       </tbody>
   </table>
   {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelectorAll('.copy-text').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const text = btn.getAttribute('data-text');
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = 'Text kopiert';
+                setTimeout(() => btn.textContent = 'Text kopieren', 2000);
+            });
+        });
+    });
+</script>
 {% endblock %}

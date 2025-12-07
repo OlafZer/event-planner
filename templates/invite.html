@@ -1,26 +1,68 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="card">
-    <div class="card-body">
-        <h2 class="card-title">Einladung für {{ guest.first_name }}{% if guest.last_name %} {{ guest.last_name }}{% endif %}</h2>
-        <p class="card-text">Maximal eingeladene Personen: {{ guest.max_persons }}</p>
-        <form method="post">
-            {{ form.hidden_tag() }}
-            <div class="mb-3">
-                {{ form.status.label(class_='form-label') }}
-                {{ form.status(class_='form-select') }}
+<div class="row g-4 align-items-stretch">
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="card-title">Einladung für {{ guest.first_name }}{% if guest.last_name %} {{ guest.last_name }}{% endif %}</h2>
+                <p class="card-text mb-1">Event: <strong>{{ event.name }}</strong></p>
+                <p class="card-text">Wann: {{ event.event_date.strftime('%d.%m.%Y %H:%M Uhr') }}</p>
+                <p class="card-text">Maximal eingeladene Personen: {{ guest.max_persons }}</p>
+                <div class="alert alert-info" id="countdown" data-event-date="{{ event.event_date.isoformat() }}">
+                    Lade Countdown...
+                </div>
+                <h5>Dein Einladungstext</h5>
+                <p>{{ event.invitation_text }}</p>
+                <a class="btn btn-outline-secondary" href="{{ url_for('invite_qr', event_id=event.id, code=guest.invite_code_hash) }}" target="_blank">QR-Code anzeigen</a>
             </div>
-            <div class="mb-3">
-                {{ form.confirmed_persons.label(class_='form-label') }}
-                {{ form.confirmed_persons(class_='form-control', max=guest.max_persons) }}
-                <div class="form-text">Bitte maximal {{ guest.max_persons }} Personen eintragen.</div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h4 class="card-title">Deine Rückmeldung</h4>
+                <form method="post">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.status.label(class_='form-label') }}
+                        {{ form.status(class_='form-select') }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.confirmed_persons.label(class_='form-label') }}
+                        {{ form.confirmed_persons(class_='form-control', max=guest.max_persons) }}
+                        <div class="form-text">Bitte maximal {{ guest.max_persons }} Personen eintragen.</div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.notes.label(class_='form-label') }}
+                        {{ form.notes(class_='form-control') }}
+                    </div>
+                    {{ form.submit(class_='btn btn-primary') }}
+                </form>
             </div>
-            <div class="mb-3">
-                {{ form.notes.label(class_='form-label') }}
-                {{ form.notes(class_='form-control') }}
-            </div>
-            {{ form.submit(class_='btn btn-primary') }}
-        </form>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const countdownEl = document.getElementById('countdown');
+    if (countdownEl) {
+        const targetDate = new Date(countdownEl.dataset.eventDate);
+        const updateCountdown = () => {
+            const now = new Date();
+            const diff = targetDate - now;
+            if (diff <= 0) {
+                countdownEl.textContent = 'Das Event läuft gerade oder ist vorbei.';
+                return;
+            }
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((diff / (1000 * 60)) % 60);
+            countdownEl.textContent = `Noch ${days} Tage, ${hours} Stunden, ${minutes} Minuten bis zum Event`;
+        };
+        updateCountdown();
+        setInterval(updateCountdown, 60000);
+    }
+</script>
 {% endblock %}

@@ -4,7 +4,9 @@ import os  # Import os to access environment variables for configuration.
 import csv  # Import csv to parse admin-uploaded guest seed files.
 import hashlib  # Import hashlib for invite code hashing.
 from datetime import datetime  # Import datetime for timestamping access logs.
-from typing import Optional as TypingOptional  # Alias Optional to avoid clashing with WTForms validator.
+from io import BytesIO
+from textwrap import wrap
+from typing import Iterable, Optional as TypingOptional  # Alias Optional to avoid clashing with WTForms validator.
 
 from dotenv import load_dotenv
 from flask import (
@@ -18,6 +20,7 @@ from flask import (
     session,
     url_for,
 )
+from flask_mail import Mail, Message
 from flask_login import (
     LoginManager,
     UserMixin,
@@ -30,9 +33,26 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileRequired
 import pyotp
+import segno
 from werkzeug.security import check_password_hash, generate_password_hash
-from wtforms import BooleanField, FileField, IntegerField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import (
+    BooleanField,
+    DateTimeLocalField,
+    FileField,
+    IntegerField,
+    PasswordField,
+    SelectField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+    HiddenField,
+)
 from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional as OptionalValidator, Regexp
+
+from reportlab.lib.pagesizes import A6
+from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 
 load_dotenv()
 
@@ -86,6 +106,13 @@ app.config["SQLALCHEMY_DATABASE_URI"] = (
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ECHO"] = os.environ.get("SQLALCHEMY_ECHO", "false").lower() == "true"
+app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "")
+app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", 587))
+app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"
+app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME")
+app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD")
+app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER")
+app.config["LOGO_URL"] = os.environ.get("LOGO_URL", "")
 
 
 # Database
@@ -93,6 +120,7 @@ app.config["SQLALCHEMY_ECHO"] = os.environ.get("SQLALCHEMY_ECHO", "false").lower
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "admin_login"
+mail = Mail(app)
 
 
 class Event(db.Model):
@@ -101,6 +129,9 @@ class Event(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     name = db.Column(db.String(150), nullable=False, unique=True)
     description = db.Column(db.Text, nullable=True)
+    event_date = db.Column(db.DateTime, nullable=False)
+    invitation_text = db.Column(db.Text, nullable=False)
+    background_image_url = db.Column(db.String(512), nullable=True)
 
     guests = db.relationship("Guest", backref="event", cascade="all, delete-orphan")
 
@@ -171,6 +202,11 @@ def load_user(user_id):
     return AdminUser.query.get(int(user_id))
 
 
+@app.context_processor
+def inject_branding():
+    return {"logo_url": app.config.get("LOGO_URL")}
+
+
 def create_admin_user(
     email: str, password: str, role: str = "event_admin", event: TypingOptional[Event] = None
 ) -> AdminUser:
@@ -188,6 +224,75 @@ def create_admin_user(
     return user
 
 
+def _get_invite_hash(code: str) -> str:
+    cleaned = (code or "").strip()
+    if len(cleaned) == 64 and all(c in "0123456789abcdefABCDEF" for c in cleaned):
+        return cleaned.lower()
+    return hash_invite_code(cleaned.upper())
+
+
+def _get_guest_by_code(event_id: int, code: str) -> Guest:
+    invite_hash = _get_invite_hash(code)
+    return Guest.query.filter_by(event_id=event_id, invite_code_hash=invite_hash).first_or_404()
+
+
+def _mail_configured() -> bool:
+    return bool(app.config.get("MAIL_SERVER") and app.config.get("MAIL_DEFAULT_SENDER"))
+
+
+def _send_email(subject: str, recipients: list[str], html_body: str, attachments: list[tuple[str, bytes]] | None = None):
+    if not _mail_configured():
+        return False
+    message = Message(subject=subject, recipients=recipients, html=html_body)
+    for filename, content in attachments or []:
+        message.attach(filename=filename, content_type="application/pdf", data=content)
+    mail.send(message)
+    return True
+
+
+def _generate_qr_png(data: str) -> BytesIO:
+    qr = segno.make(data)
+    buffer = BytesIO()
+    qr.save(buffer, kind="png", scale=5)
+    buffer.seek(0)
+    return buffer
+
+
+def _build_invite_pdf(guest: "Guest", event: Event, invite_url: str) -> bytes:
+    qr_buffer = _generate_qr_png(invite_url)
+    pdf_buffer = BytesIO()
+    c = canvas.Canvas(pdf_buffer, pagesize=A6)
+    width, height = A6
+    margin = 10 * mm
+
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(margin, height - margin - 10, event.name)
+
+    c.setFont("Helvetica", 10)
+    c.drawString(margin, height - margin - 28, f"Für: {guest.first_name} {guest.last_name or ''}".strip())
+    c.drawString(margin, height - margin - 42, f"Wann: {event.event_date.strftime('%d.%m.%Y %H:%M Uhr')}")
+
+    text_obj = c.beginText(margin, height - margin - 64)
+    text_obj.setFont("Helvetica", 10)
+    text_obj.textLine("Einladungstext:")
+    for line in wrap(event.invitation_text or "", width=55):
+        text_obj.textLine(line)
+    c.drawText(text_obj)
+
+    qr_size = 80
+    c.drawImage(ImageReader(qr_buffer), width - qr_size - margin, margin, qr_size, qr_size, mask="auto")
+    c.setFont("Helvetica", 8)
+    c.drawString(margin, margin + qr_size + 4, "QR-Code scannen oder Link öffnen:")
+    url_lines = wrap(invite_url, width=60)
+    for idx, line in enumerate(url_lines):
+        c.drawString(margin, margin + qr_size - 10 + (idx * 10), line)
+
+    c.showPage()
+    c.save()
+    pdf_buffer.seek(0)
+    return pdf_buffer.getvalue()
+
+
 # Forms
 
 
@@ -197,7 +302,7 @@ class AccessCodeForm(FlaskForm):
     access_code = StringField(
         "Zugangscode",
         validators=[
-            DataRequired(message="Bitte geben Sie Ihren Code ein."),
+            DataRequired(message="Bitte gib deinen Code ein."),
             Regexp(r"^[A-Za-z0-9]{8}$", message="Bitte einen gültigen 8-stelligen Code eingeben."),
         ],
         render_kw={"placeholder": "Z. B. A1B2C3D4", "maxlength": 8},
@@ -231,6 +336,15 @@ class InviteForm(FlaskForm):
 class EventCreateForm(FlaskForm):
     name = StringField("Event-Name", validators=[DataRequired(), Length(max=150)])
     description = TextAreaField("Beschreibung", validators=[OptionalValidator(), Length(max=1000)])
+    event_date = DateTimeLocalField(
+        "Event-Datum", format="%Y-%m-%dT%H:%M", validators=[DataRequired()], render_kw={"step": 900}
+    )
+    invitation_text = TextAreaField("Einladungstext", validators=[DataRequired(), Length(max=5000)])
+    background_image_url = StringField(
+        "Hintergrundbild-URL",
+        validators=[OptionalValidator(), Length(max=512)],
+        render_kw={"placeholder": "https://..."},
+    )
     submit_event = SubmitField("Event anlegen")
 
 
@@ -277,6 +391,12 @@ class GuestForm(FlaskForm):
     submit_guest = SubmitField("Gast speichern")
 
 
+class GuestActionForm(FlaskForm):
+    guest_id = HiddenField(validators=[DataRequired()])
+    action = HiddenField(validators=[DataRequired()])
+    submit_action = SubmitField("Aktion ausführen")
+
+
 # Routes
 
 
@@ -304,7 +424,7 @@ def index():
         guest = Guest.query.filter_by(invite_code_hash=code_hash).first()
         if guest:
             return redirect(url_for("invite", event_id=guest.event_id, code=code))
-        flash("Dieser Zugangscode wurde nicht gefunden. Bitte prüfen Sie Ihre Eingabe.", "danger")
+        flash("Dieser Zugangscode wurde nicht gefunden. Bitte prüfe deine Eingabe.", "danger")
 
     return render_template("index.html", form=form)
 
@@ -312,8 +432,7 @@ def index():
 @app.route("/event/<int:event_id>/invite/<code>", methods=["GET", "POST"])
 def invite(event_id: int, code: str):
     event = Event.query.get_or_404(event_id)
-    code_hash = hash_invite_code(code)
-    guest = Guest.query.filter_by(event_id=event.id, invite_code_hash=code_hash).first_or_404()
+    guest = _get_guest_by_code(event.id, code)
 
     access = AccessLog(
         event_id=event.id,
@@ -337,7 +456,21 @@ def invite(event_id: int, code: str):
         guest.status = guest_status
         guest.confirmed_persons = confirmed
         db.session.commit()
-        flash("Danke für Ihre Rückmeldung!", "success")
+        if guest.notify_admin:
+            admins = AdminUser.query.filter(
+                (AdminUser.event_id == event.id) | (AdminUser.role == "super_admin")
+            ).all()
+            recipients = [admin.email for admin in admins if admin.email]
+            if recipients:
+                _send_email(
+                    subject=f"Status-Update von {guest.first_name} {guest.last_name or ''}",
+                    recipients=recipients,
+                    html_body=(
+                        f"<p>{guest.first_name} {guest.last_name or ''} hat den Status auf <strong>{guest_status}</strong>"
+                        f" gesetzt.</p><p>Personen: {confirmed}/{guest.max_persons}</p>"
+                    ),
+                )
+        flash("Danke für deine Rückmeldung!", "success")
         return redirect(url_for("invite", event_id=event_id, code=code))
 
     if request.method == "GET":
@@ -345,7 +478,14 @@ def invite(event_id: int, code: str):
         form.confirmed_persons.data = getattr(guest, "confirmed_persons", 0)
         form.notes.data = getattr(guest, "notes", "")
 
-    return render_template("invite.html", guest=guest, form=form)
+    return render_template(
+        "invite.html",
+        guest=guest,
+        event=event,
+        form=form,
+        invite_url=url_for("invite", event_id=event.id, code=code, _external=True),
+        background_image_url=event.background_image_url,
+    )
 
 
 @app.route("/admin/login", methods=["GET", "POST"])
@@ -422,10 +562,17 @@ def admin_dashboard():
     event_form = EventCreateForm()
     upload_form = CsvUploadForm()
     guest_form = GuestForm()
+    action_form = GuestActionForm()
     upload_form.event_id.choices = [(event.id, event.name) for event in available_events if event]
 
     if current_user.is_super_admin and event_form.submit_event.data and event_form.validate_on_submit():
-        new_event = Event(name=event_form.name.data, description=event_form.description.data)
+        new_event = Event(
+            name=event_form.name.data,
+            description=event_form.description.data,
+            event_date=event_form.event_date.data,
+            invitation_text=event_form.invitation_text.data,
+            background_image_url=event_form.background_image_url.data or None,
+        )
         db.session.add(new_event)
         db.session.commit()
         flash("Event erfolgreich angelegt", "success")
@@ -518,7 +665,7 @@ def admin_dashboard():
 
     if guest_form.submit_guest.data and guest_form.validate_on_submit():
         if not active_event:
-            flash("Bitte zuerst ein Event auswählen", "warning")
+            flash("Bitte wähle zuerst ein Event aus.", "warning")
             return redirect(url_for("admin_dashboard"))
         _require_event_access(active_event.id)
         code_hash = hash_invite_code(guest_form.invite_code.data)
@@ -542,8 +689,19 @@ def admin_dashboard():
             return redirect(url_for("admin_dashboard", event_id=active_event.id))
 
     guests: Iterable[Guest] = []
+    stats = {"total": 0, "pax_yes": 0, "declined": 0, "open": 0}
     if active_event:
         guests = Guest.query.filter_by(event_id=active_event.id).order_by(Guest.first_name, Guest.last_name).all()
+        stats["total"] = len(guests)
+        stats["pax_yes"] = (
+            db.session.query(db.func.coalesce(db.func.sum(Guest.confirmed_persons), 0))
+            .filter_by(event_id=active_event.id, status="zusage")
+            .scalar()
+        )
+        stats["declined"] = Guest.query.filter_by(event_id=active_event.id, status="absage").count()
+        stats["open"] = Guest.query.filter(
+            Guest.event_id == active_event.id, Guest.status.notin_(["zusage", "absage"])
+        ).count()
 
     return render_template(
         "admin_dashboard.html",
@@ -553,6 +711,8 @@ def admin_dashboard():
         guest_form=guest_form,
         active_event=active_event,
         available_events=available_events,
+        action_form=action_form,
+        stats=stats,
     )
 
 
@@ -589,6 +749,57 @@ def download_template(event_id: int):
             }
         )
     return send_file(template_path, as_attachment=True)
+
+
+@app.route("/admin/event/<int:event_id>/guest/<int:guest_id>/email", methods=["POST"])
+@login_required
+def send_guest_email(event_id: int, guest_id: int):
+    _require_event_access(event_id)
+    guest = Guest.query.filter_by(id=guest_id, event_id=event_id).first_or_404()
+    form = GuestActionForm()
+    if not form.validate_on_submit() or form.action.data != "email":
+        abort(400)
+    if not guest.email:
+        flash("Keine E-Mail-Adresse für diesen Gast hinterlegt.", "warning")
+        return redirect(url_for("admin_dashboard", event_id=event_id))
+
+    invite_url = url_for("invite", event_id=event_id, code=guest.invite_code_hash, _external=True)
+    pdf_bytes = _build_invite_pdf(guest, guest.event, invite_url)
+    sent = _send_email(
+        subject=f"Deine Einladung zu {guest.event.name}",
+        recipients=[guest.email],
+        html_body=(
+            f"<p>Hallo {guest.first_name},</p>"
+            f"<p>{guest.event.invitation_text}</p>"
+            f"<p>Dein persönlicher Link: <a href='{invite_url}'>{invite_url}</a></p>"
+        ),
+        attachments=[(f"Einladung_{guest.first_name}.pdf", pdf_bytes)],
+    )
+    if sent:
+        flash("E-Mail wurde versendet.", "success")
+    else:
+        flash("Mail-Versand ist nicht konfiguriert.", "warning")
+    return redirect(url_for("admin_dashboard", event_id=event_id))
+
+
+@app.route("/admin/event/<int:event_id>/guest/<int:guest_id>/pdf")
+@login_required
+def download_guest_pdf(event_id: int, guest_id: int):
+    _require_event_access(event_id)
+    guest = Guest.query.filter_by(id=guest_id, event_id=event_id).first_or_404()
+    invite_url = url_for("invite", event_id=event_id, code=guest.invite_code_hash, _external=True)
+    pdf_bytes = _build_invite_pdf(guest, guest.event, invite_url)
+    filename = f"Einladung_{guest.first_name}.pdf"
+    return send_file(BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=True, download_name=filename)
+
+
+@app.route("/event/<int:event_id>/invite/<code>/qr")
+def invite_qr(event_id: int, code: str):
+    event = Event.query.get_or_404(event_id)
+    _get_guest_by_code(event.id, code)
+    invite_url = url_for("invite", event_id=event.id, code=code, _external=True)
+    buffer = _generate_qr_png(invite_url)
+    return send_file(buffer, mimetype="image/png")
 
 
 if __name__ == "__main__":
