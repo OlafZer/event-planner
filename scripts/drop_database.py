@@ -9,6 +9,7 @@ Voraussetzungen:
 """
 
 import os
+import re
 import sys
 from typing import Optional
 
@@ -43,10 +44,17 @@ def _connect(database: Optional[str] = None) -> pymysql.connections.Connection:
     )
 
 
+def _validate_db_name(db_name: str) -> str:
+    if not re.fullmatch(r"[A-Za-z0-9_]+", db_name):
+        sys.exit("Ungültiger Datenbankname: nur Buchstaben, Zahlen und Unterstrich sind erlaubt.")
+    return db_name
+
+
 def drop_database(db_name: str) -> None:
+    safe_name = _validate_db_name(db_name)
     with _connect(None) as connection, connection.cursor() as cursor:
-        cursor.execute(f"DROP DATABASE IF EXISTS `{db_name}`;")
-    print(f"Datenbank '{db_name}' wurde gelöscht (falls vorhanden).")
+        cursor.execute(f"DROP DATABASE IF EXISTS `{safe_name}`;")
+    print(f"Datenbank '{safe_name}' wurde gelöscht (falls vorhanden).")
 
 
 def main():
@@ -54,7 +62,7 @@ def main():
     for key in REQUIRED_ENV_VARS:
         _env_or_exit(key)
 
-    db_name = os.environ["DB_NAME"]
+    db_name = _validate_db_name(os.environ["DB_NAME"])
     print("WARNUNG: Diese Aktion löscht alle Daten unwiderruflich.")
     confirm = input(f"Zum Fortfahren bitte den Datenbanknamen '{db_name}' eingeben: ").strip()
     if confirm != db_name:

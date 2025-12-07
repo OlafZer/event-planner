@@ -24,22 +24,10 @@ import argparse
 import csv
 import sys
 
-from app import ALLOWED_CATEGORIES, Event, Guest, app, db, hash_invite_code
-from wtforms.validators import Email
+from app import ALLOWED_CATEGORIES, Event, Guest, app, db, hash_invite_code, is_valid_email
 
 
 TRUE_VALUES = {"1", "true", "yes", "ja", "y"}
-
-
-def _validate_email(value: str) -> bool:
-    if not value:
-        return True
-    validator = Email()
-    try:
-        validator(None, type("Tmp", (), {"data": value, "raw_data": [value]}))
-    except Exception:
-        return False
-    return True
 
 
 def main():
@@ -98,7 +86,7 @@ def main():
                 if not invite_code:
                     print("Invite-Code fehlt", file=sys.stderr)
                     continue
-                if email and not _validate_email(email):
+                if email and not is_valid_email(email):
                     print(f"Ungültige E-Mail: {email}", file=sys.stderr)
                     continue
 
