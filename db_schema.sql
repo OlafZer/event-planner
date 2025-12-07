@@ -4,6 +4,9 @@ CREATE TABLE events (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL UNIQUE,
     description TEXT NULL,
+    event_date DATETIME NOT NULL,
+    invitation_text TEXT NOT NULL,
+    background_image_url VARCHAR(512) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,4 +48,10 @@ CREATE TABLE access_log (
     CONSTRAINT fk_access_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
     CONSTRAINT fk_access_guest FOREIGN KEY (guest_id) REFERENCES guests(id) ON DELETE CASCADE
 );
+
+-- Migration helper for bestehende Datenbanken
+-- Führe diese Statements aus, um die neuen Spalten ohne Datenverlust hinzuzufügen:
+-- ALTER TABLE events ADD COLUMN event_date DATETIME NOT NULL AFTER description;
+-- ALTER TABLE events ADD COLUMN invitation_text TEXT NOT NULL AFTER event_date;
+-- ALTER TABLE events ADD COLUMN background_image_url VARCHAR(512) NULL AFTER invitation_text;
 
