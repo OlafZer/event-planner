@@ -36,6 +36,10 @@ from wtforms.validators import DataRequired, Email, Length, NumberRange, Optiona
 
 load_dotenv()
 
+# Invite code hashing parameters
+PBKDF2_ITERATIONS = 200_000
+
+
 ALLOWED_CATEGORIES = (
     "Familie",
     "Nachbarn",
@@ -54,9 +58,23 @@ def hash_invite_code(code: str) -> str:
     Speichert nur den Hash in der DB, nicht den Klartext.
     """
 
-    salt = app.config.get("SECURITY_PASSWORD_SALT", "")
-    value = f"{salt}:{code}".encode("utf-8")
-    return hashlib.sha256(value).hexdigest()
+    salt = app.config.get("SECURITY_PASSWORD_SALT", "").encode("utf-8")
+    value = code.encode("utf-8")
+    derived_key = hashlib.pbkdf2_hmac("sha256", value, salt, PBKDF2_ITERATIONS)
+    return derived_key.hex()
+
+
+def is_valid_email(value: str) -> bool:
+    """Validates an email address string using WTForms' Email validator."""
+
+    if not value:
+        return True
+    validator = Email()
+    try:
+        validator(None, type("Tmp", (), {"data": value, "raw_data": [value]}))
+    except Exception:
+        return False
+    return True
 
 
 app = Flask(__name__)
@@ -120,7 +138,7 @@ class AccessLog(db.Model):
     event_id = db.Column(db.BigInteger, db.ForeignKey("events.id"), nullable=False, index=True)
     guest_id = db.Column(db.BigInteger, db.ForeignKey("guests.id"), nullable=False)
     accessed_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
-    user_agent = db.Column(db.String(255), nullable=True)
+    user_agent = db.Column(db.String(512), nullable=True)
 
 
 class AdminUser(UserMixin, db.Model):
@@ -367,7 +385,7 @@ def admin_totp():
             session.pop("pre_2fa_user_id", None)
             return redirect(url_for("admin_dashboard"))
         flash("TOTP-Code ungültig oder abgelaufen", "danger")
-    return render_template("admin_totp.html", form=form, provisioning_uri=user.generate_totp_uri())
+    return render_template("admin_totp.html", form=form)
 
 
 @app.route("/admin/logout")
@@ -438,7 +456,8 @@ def admin_dashboard():
             return redirect(url_for("admin_dashboard", event_id=target_event_id))
 
         imported = 0
-        for row in reader:
+        errors = []
+        for index, row in enumerate(reader, start=2):
             first_name = (row.get("name") or "").strip()
             last_name = (row.get("nachname") or "").strip() or None
             category = (row.get("kategorie") or "").strip()
@@ -449,21 +468,30 @@ def admin_dashboard():
             notify_raw = (row.get("notify_admin") or "").strip().lower()
 
             if not first_name:
+                errors.append(f"Zeile {index}: Name fehlt")
                 continue
             if category not in ALLOWED_CATEGORIES:
+                errors.append(f"Zeile {index}: Kategorie '{category}' ist nicht erlaubt")
                 continue
             try:
                 max_persons = int(max_persons_raw)
             except ValueError:
+                errors.append(f"Zeile {index}: max_persons muss eine Zahl sein")
                 continue
             if max_persons < 1:
+                errors.append(f"Zeile {index}: max_persons muss >= 1 sein")
                 continue
             if not invite_code:
+                errors.append(f"Zeile {index}: Invite-Code fehlt")
+                continue
+            if email_value and not is_valid_email(email_value):
+                errors.append(f"Zeile {index}: Ungültige E-Mail '{email_value}'")
                 continue
 
             code_hash = hash_invite_code(invite_code)
             existing_hash = Guest.query.filter_by(event_id=target_event.id, invite_code_hash=code_hash).first()
             if existing_hash:
+                errors.append(f"Zeile {index}: Invite-Code bereits vergeben")
                 continue
 
             notify_admin_value = notify_raw in {"1", "true", "yes", "ja", "y"}
@@ -481,8 +509,11 @@ def admin_dashboard():
             )
             db.session.add(guest)
             imported += 1
-        db.session.commit()
+        if imported:
+            db.session.commit()
         flash(f"{imported} Einträge für {target_event.name} importiert", "success")
+        if errors:
+            flash(f"{len(errors)} Zeilen übersprungen: " + "; ".join(errors), "danger")
         return redirect(url_for("admin_dashboard", event_id=target_event_id))
 
     if guest_form.submit_guest.data and guest_form.validate_on_submit():

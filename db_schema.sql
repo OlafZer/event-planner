@@ -41,7 +41,7 @@ CREATE TABLE access_log (
     event_id BIGINT UNSIGNED NOT NULL,
     guest_id BIGINT UNSIGNED NOT NULL,
     accessed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    user_agent VARCHAR(255),
+    user_agent VARCHAR(512),
     CONSTRAINT fk_access_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
     CONSTRAINT fk_access_guest FOREIGN KEY (guest_id) REFERENCES guests(id) ON DELETE CASCADE
 );
