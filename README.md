@@ -23,11 +23,16 @@ Diese Dokumentation liefert einen vollständigen, sicherheitsorientierten Entwur
 Die Import-Logik erwartet eine pro Event getrennte CSV-Datei mit genau diesen Spalten in der Reihenfolge:
 
 ```
-invite_code,max_attendees,notify_admin
+name,nachname,kategorie,max_persons,invite_code,email,telephone,notify_admin
 ```
 
+- `name`: Pflichtfeld für den Vornamen.
+- `nachname`: Optionaler Nachname.
+- `kategorie`: Eine der erlaubten Kategorien aus der Anwendung (z. B. `vip`, `standard`).
+- `max_persons`: Ganzzahlige maximale Personenzahl für diese Einladung.
 - `invite_code`: Achtstelliger, eindeutig pro Event gültiger Code (z. B. `AB12CD34`).
-- `max_attendees`: Ganzzahlige maximale Personenzahl für die Einladungseinheit.
+- `email`: Optionale Kontaktadresse.
+- `telephone`: Optionale Telefonnummer.
 - `notify_admin`: `true` oder `false`, ob der zuständige Event-Admin bei Statusänderungen per E-Mail informiert wird.
 
 Jeder Datensatz wird im Import-Prozess strikt mit der jeweiligen `event_id` verknüpft, sodass keine Fremddaten überschrieben werden können.

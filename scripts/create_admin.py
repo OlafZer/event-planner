@@ -90,9 +90,10 @@ def main():
         if role == "event_admin" and assigned_event is not None:
             print(f"  Event:  {assigned_event.id} - {assigned_event.name}")
 
-        print("\nTOTP-Secret (fuer deine Authenticator-App):")
+        print("\nTOTP-Secret (fuer deine Authenticator-App – wird nur jetzt angezeigt):")
         print(f"  {secret}")
-        print("\nDieses Secret musst du in einer TOTP-App (z.B. Google Authenticator) als neues Konto hinterlegen.")
+        print("\nSpeichere dieses Secret sofort sicher (z.B. Passwort-Tresor) oder erzeuge einen otpauth-QR-Code fuer den Import in eine TOTP-App.")
+        print("Es wird spaeter nicht erneut angezeigt; bei Verlust muss ein neues Secret gesetzt und der Benutzer neu initialisiert werden.")
         print("Danach kannst du dich mit E-Mail + Passwort + TOTP-Code anmelden.")
 
 

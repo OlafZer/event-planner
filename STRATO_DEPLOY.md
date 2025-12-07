@@ -61,6 +61,8 @@ with app.app_context():
     print('TOTP Secret:', secret)
 ```
 
+   - Das TOTP-Secret wird nur bei der Erstellung ausgegeben. Speichere es sofort sicher (z. B. in einem Passwort-Tresor) oder generiere daraus einen QR-Code für deine Authenticator-App. Die Web-Oberfläche zeigt das Secret nicht erneut an; bei Verlust muss ein neues Secret gesetzt und der Benutzer neu initialisiert werden.
+
 7. **Testen**
    - `/admin/login` aufrufen, mit Passwort anmelden, anschließend den TOTP-Code aus der Authenticator-App eingeben.
    - Events anlegen, Event-Admins binden und Einladungslinks als `/event/<event_id>/invite/<code>` testen; CSV-Import im Admin-Dashboard nutzen.
