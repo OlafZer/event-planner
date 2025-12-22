@@ -34,16 +34,16 @@ def _invite_hash_from_code(code: str) -> Optional[str]:
     return hash_invite_code(cleaned)
 
 
-def _get_guest_by_code(event: Event, code: str) -> Guest:
+def _get_guest_by_code(event: Event, code: str) -> Guest | None:
     """Return the guest that matches a code for the given event."""
 
     invite_hash = _invite_hash_from_code(code)
     if invite_hash is None or not re.fullmatch(r"[0-9a-f]{64}", invite_hash):
-        abort(404)
+        return None
     if not (len(code) == 64 and re.fullmatch(r"[0-9a-fA-F]{64}", code)):
         if extract_code_prefix(code) != event.code_prefix:
-            abort(404)
-    return Guest.query.filter_by(event_id=event.id, invite_code_hash=invite_hash).first_or_404()
+            return None
+    return Guest.query.filter_by(event_id=event.id, invite_code_hash=invite_hash).first()
 
 
 @public_bp.route("/", methods=["GET", "POST"])
@@ -72,6 +72,8 @@ def invite(event_id: int, code: str) -> Response | str:
 
     event = Event.query.get_or_404(event_id)
     guest = _get_guest_by_code(event, code)
+    if not guest:
+        return redirect(url_for("public.index"))
 
     access = AccessLog(
         event_id=event.id,
@@ -132,7 +134,8 @@ def invite_qr(event_id: int, code: str) -> Response:
     """Return a QR code PNG for the invite link."""
 
     event = Event.query.get_or_404(event_id)
-    _get_guest_by_code(event, code)
+    if not _get_guest_by_code(event, code):
+        return redirect(url_for("public.index"))
     invite_url = url_for("public.invite", event_id=event.id, code=code, _external=True)
     buffer = generate_qr_png(invite_url)
     return send_file(buffer, mimetype="image/png")

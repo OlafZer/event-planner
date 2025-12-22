@@ -88,10 +88,9 @@ def _prepare_manual_invite_code(code: str, event: Event) -> Optional[str]:
     normalized = normalize_invite_code(code)
     if re.fullmatch(INVITE_CODE_PATTERN, normalized):
         return normalized if normalized[:2] == event.code_prefix else None
-    suffix = normalized.lstrip("-")
-    if not re.fullmatch(r"^[A-Z0-9]{5}$", suffix):
+    if not re.fullmatch(r"^[A-Z0-9]{6}$", normalized):
         return None
-    return f"{event.code_prefix}-{suffix}"
+    return f"{event.code_prefix}{normalized}"
 
 
 @admin_bp.route("/admin/login", methods=["GET", "POST"])
@@ -288,7 +287,7 @@ def admin_dashboard() -> Response | str:
         normalized_code = _prepare_manual_invite_code(guest_form.invite_code.data, active_event)
         if not normalized_code:
             flash(
-                f"Invite-Code muss 5 Zeichen enthalten und beginnt automatisch mit {active_event.code_prefix}.",
+                f"Invite-Code muss 6 Zeichen enthalten und beginnt automatisch mit {active_event.code_prefix}.",
                 "danger",
             )
         else:
@@ -369,7 +368,7 @@ def download_template(event_id: int) -> Response:
                 "nachname": "Mustermann",
                 "kategorie": ALLOWED_CATEGORIES[0],
                 "max_persons": 2,
-                "invite_code": f"{event.code_prefix}-ABCDE",
+                "invite_code": f"{event.code_prefix}ABCDEF",
                 "email": "optional@example.com",
                 "telephone": "01234/56789",
                 "notify_admin": True,
