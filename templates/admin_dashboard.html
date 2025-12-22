@@ -13,6 +13,11 @@
                 {{ event_form.name(class_='form-control') }}
             </div>
             <div class="mb-3">
+                {{ event_form.code_prefix.label(class_='form-label') }}
+                {{ event_form.code_prefix(class_='form-control') }}
+                <div class="form-text">Zweibuchstabiger Prefix für Einladungscodes, z. B. "SF".</div>
+            </div>
+            <div class="mb-3">
                 {{ event_form.description.label(class_='form-label') }}
                 {{ event_form.description(class_='form-control') }}
             </div>
@@ -105,7 +110,7 @@
             {{ upload_form.file(class_='form-control') }}
         </div>
           {{ upload_form.submit(class_='btn btn-success') }}
-          <a class="btn btn-link" href="{{ url_for('download_template', event_id=active_event.id) }}">CSV Template herunterladen</a>
+          <a class="btn btn-link" href="{{ url_for('admin.download_template', event_id=active_event.id) }}">CSV Template herunterladen</a>
       </form>
   </div>
   <div class="card mb-4">
@@ -179,17 +184,17 @@
               <td>{{ 'Ja' if guest.notify_admin else 'Nein' }}</td>
               <td class="text-end">
                   {% if guest.email %}
-                  <form method="post" action="{{ url_for('send_guest_email', event_id=active_event.id, guest_id=guest.id) }}" class="d-inline">
+                  <form method="post" action="{{ url_for('admin.send_guest_email', event_id=active_event.id, guest_id=guest.id) }}" class="d-inline">
                       {{ action_form.csrf_token }}
                       <input type="hidden" name="guest_id" value="{{ guest.id }}">
                       <input type="hidden" name="action" value="email">
                       <button type="submit" class="btn btn-sm btn-outline-primary">E-Mail senden</button>
                   </form>
                   {% endif %}
-                  <button type="button" class="btn btn-sm btn-outline-secondary copy-text" data-text="Hallo {{ guest.first_name }}, hier ist deine Einladung für {{ active_event.name }}: {{ url_for('invite', event_id=active_event.id, code=guest.invite_code_hash, _external=True) }}">
+                  <button type="button" class="btn btn-sm btn-outline-secondary copy-text" data-text="Hallo {{ guest.first_name }}, hier ist deine Einladung für {{ active_event.name }}: {{ url_for('public.invite', event_id=active_event.id, code=guest.invite_code_hash, _external=True) }}">
                     Text kopieren
                   </button>
-                  <a class="btn btn-sm btn-outline-success" href="{{ url_for('download_guest_pdf', event_id=active_event.id, guest_id=guest.id) }}">PDF laden</a>
+                  <a class="btn btn-sm btn-outline-success" href="{{ url_for('admin.download_guest_pdf', event_id=active_event.id, guest_id=guest.id) }}">PDF laden</a>
               </td>
           </tr>
           {% endfor %}
