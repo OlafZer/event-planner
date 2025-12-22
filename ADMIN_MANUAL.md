@@ -17,9 +17,16 @@ Diese Anleitung beschreibt, wie du als Admin ein Event anlegst, Gäste importier
 
 4. **Gäste importieren**
    - Wähle dein Event in der Event-Auswahl.
-   - Lade eine CSV mit den Spalten `name,nachname,kategorie,max_persons,invite_code,email,telephone,notify_admin` hoch.
+   - Lade eine CSV mit **genau** den Spalten `name,nachname,kategorie,max_persons,invite_code,email,telephone,notify_admin` hoch (keine zusätzlichen Spalten).
+   - CSV-Format:
+     - **Trennzeichen:** Komma (`,`).
+     - **Encoding:** UTF-8.
+     - **Header-Reihenfolge:** beliebig, aber die Namen müssen exakt stimmen.
    - Kategorien müssen zu den erlaubten Werten passen (Familie, Nachbarn, Freunde, Arbeit Birgit, Arbeit Olaf, Volleyball, Toastmasters).
-   - `notify_admin` kann `true/false` oder `ja/nein` sein und steuert, ob du bei Status-Änderungen per E-Mail informiert wirst.
+   - `notify_admin` kann `true/false`, `1/0`, `yes/no` oder `ja/nein` sein und steuert, ob du bei Status-Änderungen per E-Mail informiert wirst.
+   - **Beispielzeilen:** Die heruntergeladene CSV enthält eine Musterzeile (Max Mustermann). Ersetze diese Zeile durch echte Gäste oder füge weitere Zeilen darunter hinzu.
+   - **Invite-Code:** Muss aus dem Event-Prefix + 6 Zeichen bestehen (z. B. `ABABCDEF`). Doppelte Codes werden übersprungen.
+   - **Fehlerhinweis:** Nicht passende Kategorien, ungültige E-Mails oder fehlerhafte Codes werden pro Zeile übersprungen und als Hinweis im Admin-Dashboard angezeigt.
 
 5. **Gäste manuell hinzufügen**
    - Nutze das Formular „Gast manuell anlegen“ für Einzel-Imports. Du gibst den Klartext-Invite-Code ein; die App speichert davon nur den Hash.
