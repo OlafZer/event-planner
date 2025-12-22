@@ -357,35 +357,40 @@ def download_template(event_id: int) -> Response:
 
     _require_event_access(event_id)
     event = Event.query.get_or_404(event_id)
-    template_path = "csv_template.csv"
-    with open(template_path, "w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.DictWriter(
-            csvfile,
-            fieldnames=[
-                "name",
-                "nachname",
-                "kategorie",
-                "max_persons",
-                "invite_code",
-                "email",
-                "telephone",
-                "notify_admin",
-            ],
-        )
-        writer.writeheader()
-        writer.writerow(
-            {
-                "name": "Max",
-                "nachname": "Mustermann",
-                "kategorie": ALLOWED_CATEGORIES[0],
-                "max_persons": 2,
-                "invite_code": f"{event.code_prefix}ABCDEF",
-                "email": "optional@example.com",
-                "telephone": "01234/56789",
-                "notify_admin": True,
-            }
-        )
-    return send_file(template_path, as_attachment=True)
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=[
+            "name",
+            "nachname",
+            "kategorie",
+            "max_persons",
+            "invite_code",
+            "email",
+            "telephone",
+            "notify_admin",
+        ],
+    )
+    writer.writeheader()
+    writer.writerow(
+        {
+            "name": "Max",
+            "nachname": "Mustermann",
+            "kategorie": ALLOWED_CATEGORIES[0],
+            "max_persons": 2,
+            "invite_code": f"{event.code_prefix}ABCDEF",
+            "email": "optional@example.com",
+            "telephone": "01234/56789",
+            "notify_admin": True,
+        }
+    )
+    csv_bytes = BytesIO(output.getvalue().encode("utf-8"))
+    return send_file(
+        csv_bytes,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="csv_template.csv",
+    )
 
 
 @admin_bp.route("/admin/event/<int:event_id>/guest/<int:guest_id>/email", methods=["POST"])
