@@ -134,8 +134,10 @@ class GuestForm(FlaskForm):
         "Invite-Code (Klartext)",
         validators=[
             DataRequired(),
-            Regexp(INVITE_CODE_PATTERN, message="Code muss dem Format XX-ABCDE entsprechen."),
+            Length(min=5, max=6),
+            Regexp(r"^-?[A-Za-z0-9]{5}$", message="Code muss 5 Zeichen enthalten (z. B. -AB12C)."),
         ],
+        render_kw={"maxlength": 6, "placeholder": "-AB12C"},
     )
     email = StringField("E-Mail (optional)", validators=[Optional(), Email(), Length(max=255)])
     telephone = StringField("Telefon", validators=[Optional(), Length(max=50)])

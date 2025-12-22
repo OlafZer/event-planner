@@ -69,6 +69,7 @@ def create_demo_events() -> None:
 def create_demo_guests(event: Event, count: int = 15) -> None:
     """Generate demo guests for the given event."""
     status_choices = ["safe_the_date", "zusage", "absage", "unsicher"]
+    invite_codes: list[tuple[str, str]] = []
     for _ in range(count):
         first_name = faker.first_name()
         last_name = faker.last_name()
@@ -87,7 +88,10 @@ def create_demo_guests(event: Event, count: int = 15) -> None:
             notify_admin=random.choice([True, False]),
         )
         db.session.add(guest)
+        invite_codes.append((f"{first_name} {last_name}", invite_code))
     print(f"{count} Gäste für {event.name} vorbereitet.")
+    for guest_name, invite_code in invite_codes:
+        print(f"  {guest_name}: {invite_code}")
 
 
 if __name__ == "__main__":

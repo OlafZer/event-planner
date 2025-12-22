@@ -66,6 +66,10 @@
 </div>
 
 {% if active_event %}
+  <div class="mb-3">
+      <h4 class="mb-0">{{ active_event.name }}</h4>
+      <div class="text-muted">Prefix: {{ active_event.code_prefix }}</div>
+  </div>
   <div class="row row-cols-1 row-cols-md-4 g-3 mb-4">
       <div class="col">
           <div class="card text-bg-primary">
@@ -137,7 +141,10 @@
                   </div>
                   <div class="col-md-6">
                       {{ guest_form.invite_code.label(class_='form-label') }}
-                      {{ guest_form.invite_code(class_='form-control') }}
+                      <div class="input-group">
+                          <span class="input-group-text">{{ active_event.code_prefix }}</span>
+                          {{ guest_form.invite_code(class_='form-control') }}
+                      </div>
                   </div>
                   <div class="col-md-6">
                       {{ guest_form.email.label(class_='form-label') }}
