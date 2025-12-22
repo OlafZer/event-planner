@@ -28,9 +28,9 @@ class AccessCodeForm(FlaskForm):
         "Zugangscode",
         validators=[
             DataRequired(message="Bitte gib deinen Code ein."),
-            Regexp(INVITE_CODE_PATTERN, message="Bitte einen gültigen Code eingeben (z. B. SF-AB12C)."),
+            Regexp(INVITE_CODE_PATTERN, message="Bitte einen gültigen Code eingeben (z. B. SFAB12C1)."),
         ],
-        render_kw={"placeholder": "Z. B. SF-AB12C", "maxlength": 8},
+        render_kw={"placeholder": "Z. B. SFAB12C1", "maxlength": 8},
     )
     submit = SubmitField("Zugang prüfen")
 
@@ -134,10 +134,10 @@ class GuestForm(FlaskForm):
         "Invite-Code (Klartext)",
         validators=[
             DataRequired(),
-            Length(min=5, max=6),
-            Regexp(r"^-?[A-Za-z0-9]{5}$", message="Code muss 5 Zeichen enthalten (z. B. -AB12C)."),
+            Length(min=6, max=6),
+            Regexp(r"^[A-Za-z0-9]{6}$", message="Code muss 6 Zeichen enthalten (z. B. ABC123)."),
         ],
-        render_kw={"maxlength": 6, "placeholder": "-AB12C"},
+        render_kw={"maxlength": 6, "placeholder": "ABC123"},
     )
     email = StringField("E-Mail (optional)", validators=[Optional(), Email(), Length(max=255)])
     telephone = StringField("Telefon", validators=[Optional(), Length(max=50)])

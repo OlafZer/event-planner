@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 
 
 PBKDF2_ITERATIONS = 200_000
-INVITE_CODE_SUFFIX_LENGTH = 5
-INVITE_CODE_PATTERN = r"^[A-Za-z]{2}-[A-Za-z0-9]{5}$"
+INVITE_CODE_SUFFIX_LENGTH = 6
+INVITE_CODE_PATTERN = r"^[A-Za-z]{2}[A-Za-z0-9]{6}$"
 ALLOWED_CATEGORIES = (
     "Familie",
     "Nachbarn",
@@ -55,7 +55,7 @@ def generate_invite_code(prefix: str, suffix_length: int = INVITE_CODE_SUFFIX_LE
 
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     suffix = "".join(random.choice(alphabet) for _ in range(suffix_length))
-    return f"{prefix.upper()}-{suffix}"
+    return f"{prefix.upper()}{suffix}"
 
 
 def hash_invite_code(code: str) -> str:
