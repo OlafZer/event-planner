@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from flask import Flask
@@ -20,7 +21,9 @@ mail = Mail()
 def create_app() -> Flask:
     """Create and configure the Flask application instance."""
 
-    app = Flask(__name__)
+    base_dir = Path(__file__).resolve().parent.parent
+    template_dir = base_dir / "templates"
+    app = Flask(__name__, template_folder=str(template_dir))
     app.config.from_object(get_config())
 
     db.init_app(app)
