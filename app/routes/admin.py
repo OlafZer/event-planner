@@ -82,6 +82,18 @@ def _validate_invite_code_for_event(code: str, event: Event) -> Optional[str]:
     return normalized
 
 
+def _prepare_manual_invite_code(code: str, event: Event) -> Optional[str]:
+    """Build a full invite code for manual entry based on the event prefix."""
+
+    normalized = normalize_invite_code(code)
+    if re.fullmatch(INVITE_CODE_PATTERN, normalized):
+        return normalized if normalized[:2] == event.code_prefix else None
+    suffix = normalized.lstrip("-")
+    if not re.fullmatch(r"^[A-Z0-9]{5}$", suffix):
+        return None
+    return f"{event.code_prefix}-{suffix}"
+
+
 @admin_bp.route("/admin/login", methods=["GET", "POST"])
 def admin_login() -> Response | str:
     """Render the admin login form and handle authentication."""
@@ -273,9 +285,12 @@ def admin_dashboard() -> Response | str:
             flash("Bitte wähle zuerst ein Event aus.", "warning")
             return redirect(url_for("admin.admin_dashboard"))
         _require_event_access(active_event.id)
-        normalized_code = _validate_invite_code_for_event(guest_form.invite_code.data, active_event)
+        normalized_code = _prepare_manual_invite_code(guest_form.invite_code.data, active_event)
         if not normalized_code:
-            flash(f"Invite-Code muss mit {active_event.code_prefix} beginnen.", "danger")
+            flash(
+                f"Invite-Code muss 5 Zeichen enthalten und beginnt automatisch mit {active_event.code_prefix}.",
+                "danger",
+            )
         else:
             code_hash = hash_invite_code(normalized_code)
             if Guest.query.filter_by(event_id=active_event.id, invite_code_hash=code_hash).first():
