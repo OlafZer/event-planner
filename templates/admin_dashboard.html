@@ -166,13 +166,27 @@
           </form>
       </div>
   </div>
-  <table class="table table-striped">
+  {% set status_labels = {
+    "safe_the_date": "Save the Date",
+    "zusage": "Zusage",
+    "absage": "Absage",
+    "unsicher": "Unsicher"
+  } %}
+  {% set status_classes = {
+    "safe_the_date": "primary",
+    "zusage": "success",
+    "absage": "danger",
+    "unsicher": "warning"
+  } %}
+  <table class="table table-striped align-middle">
       <thead>
           <tr>
               <th>Vorname</th>
               <th>Nachname</th>
               <th>Kategorie</th>
               <th>Max Personen</th>
+              <th>Status</th>
+              <th>Besonderer Hinweis</th>
               <th>Email (optional)</th>
               <th>Telefon</th>
               <th>Benachrichtigung</th>
@@ -186,6 +200,12 @@
               <td>{{ guest.last_name or '' }}</td>
               <td>{{ guest.category }}</td>
               <td>{{ guest.max_persons }}</td>
+              <td>
+                  <span class="badge text-bg-{{ status_classes.get(guest.status, 'secondary') }}">
+                      {{ status_labels.get(guest.status, guest.status) }}
+                  </span>
+              </td>
+              <td>{{ (guest.notes or '—') | e | replace('\n', '<br>') | safe }}</td>
               <td>{{ guest.email or '—' }}</td>
               <td>{{ guest.telephone or '—' }}</td>
               <td>{{ 'Ja' if guest.notify_admin else 'Nein' }}</td>
