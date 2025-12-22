@@ -8,14 +8,22 @@ from typing import Type
 from dotenv import load_dotenv
 
 
+load_dotenv()
+
+
 class BaseConfig:
     """Base configuration that loads values from environment variables."""
 
     SECRET_KEY: str = os.environ.get("FLASK_SECRET_KEY", "dev-secret-change-me")
     SECURITY_PASSWORD_SALT: str = os.environ.get("SECURITY_PASSWORD_SALT", "")
+    _db_host = os.environ.get("DB_HOST")
+    _db_user = os.environ.get("DB_USER")
+    _db_password = os.environ.get("DB_PASSWORD")
+    _db_name = os.environ.get("DB_NAME")
     SQLALCHEMY_DATABASE_URI: str = (
-        f"mysql+pymysql://{os.environ.get('DB_USER')}:{os.environ.get('DB_PASSWORD')}@"
-        f"{os.environ.get('DB_HOST')}/{os.environ.get('DB_NAME')}"
+        f"mysql+pymysql://{_db_user}:{_db_password}@{_db_host}/{_db_name}"
+        if _db_host
+        else "sqlite:///event_planner.db"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_ECHO: bool = os.environ.get("SQLALCHEMY_ECHO", "false").lower() == "true"
