@@ -23,8 +23,19 @@ Spaltenhinweise:
 import argparse
 import csv
 import sys
+from pathlib import Path
 
-from app import ALLOWED_CATEGORIES, Event, Guest, app, db, hash_invite_code, is_valid_email
+# Ensure the project root is importable when running from the scripts/ directory.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app import create_app, db
+from app.models import Event, Guest
+from app.utils import ALLOWED_CATEGORIES, hash_invite_code, is_valid_email
+
+
+app = create_app()
 
 
 TRUE_VALUES = {"1", "true", "yes", "ja", "y"}

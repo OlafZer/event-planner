@@ -1,10 +1,17 @@
 """Demo-Daten für lokale Entwicklung erzeugen."""
 
 import random
+import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from dotenv import load_dotenv
 from faker import Faker
+
+# Ensure the project root is importable when running from the scripts/ directory.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from app import create_app, db
 from app.models import Event, Guest
