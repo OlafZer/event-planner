@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from html import escape
 from typing import Optional
 
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, send_file, url_for
@@ -103,12 +104,15 @@ def invite(event_id: int, code: str) -> Response | str:
             ).all()
             recipients = [admin.email for admin in admins if admin.email]
             if recipients:
+                notes_html = ""
+                if guest_notes:
+                    notes_html = f"<p><strong>Besondere Hinweise:</strong> {escape(guest_notes)}</p>"
                 send_email(
                     subject=f"Status-Update von {guest.first_name} {guest.last_name or ''}",
                     recipients=recipients,
                     html_body=(
                         f"<p>{guest.first_name} {guest.last_name or ''} hat den Status auf <strong>{guest_status}</strong>"
-                        f" gesetzt.</p><p>Personen: {confirmed}/{guest.max_persons}</p>"
+                        f" gesetzt.</p><p>Personen: {confirmed}/{guest.max_persons}</p>{notes_html}"
                     ),
                 )
         flash("Danke für deine Rückmeldung!", "success")

@@ -27,11 +27,11 @@
 <body class="bg-light {% if background_image_url %}bg-with-image{% endif %}" {% if background_image_url %}style="background-image: url('{{ background_image_url }}');"{% endif %}>
 <nav class="navbar navbar-dark bg-dark mb-4">
     <div class="container-fluid d-flex align-items-center">
-        <div class="d-flex align-items-center gap-2">
+        <a class="d-flex align-items-center gap-2 text-decoration-none text-white" href="{{ url_for('public.index') }}">
             {% set logo_src = logo_url if logo_url is defined and logo_url else url_for('static', filename='logo.png') %}
             <img src="{{ logo_src }}" alt="Logo" class="logo-img" />
             <span class="navbar-brand mb-0 h1">Party Einladung</span>
-        </div>
+        </a>
         {% if current_user.is_authenticated %}
         <a class="btn btn-outline-light" href="{{ url_for('admin.admin_logout') }}">Logout</a>
         {% endif %}
