@@ -25,10 +25,14 @@ SCHEMA_PATH = PROJECT_ROOT / "db_schema.sql"
 
 
 def _load_env() -> None:
+    """Load environment variables from the .env file."""
+
     load_dotenv()
 
 
 def _env_or_exit(key: str) -> str:
+    """Return an environment variable or exit with an error."""
+
     value = os.environ.get(key)
     if not value:
         sys.exit(f"Fehlende Umgebungsvariable: {key}")
@@ -36,6 +40,8 @@ def _env_or_exit(key: str) -> str:
 
 
 def _connect(database: Optional[str] = None) -> pymysql.connections.Connection:
+    """Create a database connection for the given database name."""
+
     return pymysql.connect(
         host=_env_or_exit("DB_HOST"),
         user=_env_or_exit("DB_USER"),
@@ -47,6 +53,8 @@ def _connect(database: Optional[str] = None) -> pymysql.connections.Connection:
 
 
 def _split_statements(sql: str) -> Iterable[str]:
+    """Split SQL scripts into executable statements."""
+
     for statement in sql.split(";"):
         cleaned = statement.strip()
         if cleaned:
@@ -54,12 +62,16 @@ def _split_statements(sql: str) -> Iterable[str]:
 
 
 def _validate_db_name(db_name: str) -> str:
+    """Validate the database name and exit on invalid input."""
+
     if not re.fullmatch(r"[A-Za-z0-9_]+", db_name):
         sys.exit("Ungültiger Datenbankname: nur Buchstaben, Zahlen und Unterstrich sind erlaubt.")
     return db_name
 
 
 def create_database(db_name: str) -> None:
+    """Create the database if it does not already exist."""
+
     safe_name = _validate_db_name(db_name)
     with _connect(None) as connection, connection.cursor() as cursor:
         cursor.execute(
@@ -69,6 +81,8 @@ def create_database(db_name: str) -> None:
 
 
 def import_schema(db_name: str) -> None:
+    """Import the SQL schema into the configured database."""
+
     if not SCHEMA_PATH.exists():
         sys.exit(f"Schema-Datei nicht gefunden: {SCHEMA_PATH}")
 
@@ -81,7 +95,9 @@ def import_schema(db_name: str) -> None:
     print(f"Schema aus {SCHEMA_PATH.name} wurde importiert.")
 
 
-def main():
+def main() -> None:
+    """Run the database initialization workflow."""
+
     _load_env()
     for key in REQUIRED_ENV_VARS:
         _env_or_exit(key)

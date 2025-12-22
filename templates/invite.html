@@ -13,7 +13,7 @@
                 </div>
                 <h5>Dein Einladungstext</h5>
                 <p>{{ event.invitation_text }}</p>
-                <a class="btn btn-outline-secondary" href="{{ url_for('invite_qr', event_id=event.id, code=guest.invite_code_hash) }}" target="_blank">QR-Code anzeigen</a>
+                <a class="btn btn-outline-secondary" href="{{ url_for('public.invite_qr', event_id=event.id, code=guest.invite_code_hash) }}" target="_blank">QR-Code anzeigen</a>
             </div>
         </div>
     </div>

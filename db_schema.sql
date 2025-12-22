@@ -3,6 +3,7 @@
 CREATE TABLE events (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL UNIQUE,
+    code_prefix CHAR(2) NOT NULL UNIQUE,
     description TEXT NULL,
     event_date DATETIME NOT NULL,
     invitation_text TEXT NOT NULL,
@@ -51,7 +52,7 @@ CREATE TABLE access_log (
 
 -- Migration helper for bestehende Datenbanken
 -- Führe diese Statements aus, um die neuen Spalten ohne Datenverlust hinzuzufügen:
+-- ALTER TABLE events ADD COLUMN code_prefix CHAR(2) NOT NULL UNIQUE AFTER name;
 -- ALTER TABLE events ADD COLUMN event_date DATETIME NOT NULL AFTER description;
 -- ALTER TABLE events ADD COLUMN invitation_text TEXT NOT NULL AFTER event_date;
 -- ALTER TABLE events ADD COLUMN background_image_url VARCHAR(512) NULL AFTER invitation_text;
-

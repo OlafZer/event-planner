@@ -33,7 +33,7 @@
             <span class="navbar-brand mb-0 h1">Party Einladung</span>
         </div>
         {% if current_user.is_authenticated %}
-        <a class="btn btn-outline-light" href="{{ url_for('admin_logout') }}">Logout</a>
+        <a class="btn btn-outline-light" href="{{ url_for('admin.admin_logout') }}">Logout</a>
         {% endif %}
     </div>
 </nav>
