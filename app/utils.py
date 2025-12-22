@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import random
 from io import BytesIO
 from textwrap import wrap
@@ -89,14 +90,18 @@ def _mail_configured() -> bool:
 def send_email(
     subject: str, recipients: list[str], html_body: str, attachments: Optional[list[tuple[str, bytes]]] = None
 ) -> bool:
-    """Send an email with optional PDF attachments."""
+    """Send an email with optional PDF attachments, returning False on failure."""
 
     if not _mail_configured():
         return False
     message = Message(subject=subject, recipients=recipients, html=html_body)
     for filename, content in attachments or []:
         message.attach(filename=filename, content_type="application/pdf", data=content)
-    mail.send(message)
+    try:
+        mail.send(message)
+    except Exception:
+        logging.getLogger(__name__).exception("Failed to send email")
+        return False
     return True
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from typing import Type
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 
@@ -21,7 +22,7 @@ class BaseConfig:
     _db_password = os.environ.get("DB_PASSWORD")
     _db_name = os.environ.get("DB_NAME")
     SQLALCHEMY_DATABASE_URI: str = (
-        f"mysql+pymysql://{_db_user}:{_db_password}@{_db_host}/{_db_name}"
+        f"mysql+pymysql://{quote_plus(_db_user or '')}:{quote_plus(_db_password or '')}@{_db_host}/{_db_name}"
         if _db_host
         else "sqlite:///event_planner.db"
     )
@@ -49,10 +50,10 @@ class ProductionConfig(BaseConfig):
 
 
 def get_config() -> Type[BaseConfig]:
-    """Return the configuration class based on the FLASK_ENV environment variable."""
+    """Return the configuration class based on the FLASK_DEBUG flag for Flask 3.x."""
 
     load_dotenv()
-    environment = os.environ.get("FLASK_ENV", "production").lower()
-    if environment == "development":
+    debug_value = os.environ.get("FLASK_DEBUG", "0").lower()
+    if debug_value in {"1", "true", "yes", "on"}:
         return DevelopmentConfig
     return ProductionConfig
