@@ -3,7 +3,7 @@ Hilfsskript zum Anlegen eines Admin-Users mit TOTP-Secret.
 
 Kann sowohl lokal als auch auf dem Strato-Server verwendet werden.
 Voraussetzung:
-- app, db, AdminUser, Event in app.py definiert
+- create_app/db in app/__init__.py, AdminUser/Event in app/models.py
 - .env mit gültigen DB-Zugangsdaten
 """
 
@@ -14,13 +14,16 @@ from pathlib import Path
 import pyotp
 from werkzeug.security import generate_password_hash
 
-# Ensure the project root (containing app.py) is importable when running from the
-# scripts/ directory.
+# Ensure the project root is importable when running from the scripts/ directory.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from app import app, db, AdminUser, Event
+from app import create_app, db
+from app.models import AdminUser, Event
+
+
+app = create_app()
 
 
 def main():
@@ -101,4 +104,3 @@ if __name__ == "__main__":
     # App-Context sicherstellen
     with app.app_context():
         main()
-
