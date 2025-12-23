@@ -22,7 +22,7 @@ faker = Faker("de_DE")
 app = create_app()
 
 
-def create_demo_events() -> None:
+def create_demo_events() -> list[tuple[str, str]]:
     """Create demo events with fixed prefixes for local development."""
     demo_events = [
         {
@@ -43,6 +43,7 @@ def create_demo_events() -> None:
         },
     ]
 
+    invite_codes: list[tuple[str, str]] = []
     with app.app_context():
         for entry in demo_events:
             existing = Event.query.filter_by(name=entry["name"]).first()
@@ -62,11 +63,12 @@ def create_demo_events() -> None:
                 )
                 db.session.add(event)
                 db.session.commit()
-            create_demo_guests(event)
+            invite_codes.extend(create_demo_guests(event))
         db.session.commit()
+    return invite_codes
 
 
-def create_demo_guests(event: Event, count: int = 15) -> None:
+def create_demo_guests(event: Event, count: int = 15) -> list[tuple[str, str]]:
     """Generate demo guests for the given event."""
     status_choices = ["safe_the_date", "zusage", "absage", "unsicher"]
     invite_codes: list[tuple[str, str]] = []
@@ -88,12 +90,12 @@ def create_demo_guests(event: Event, count: int = 15) -> None:
             notify_admin=random.choice([True, False]),
         )
         db.session.add(guest)
-        invite_codes.append((f"{first_name} {last_name}", invite_code))
-    print(f"{count} Gäste für {event.name} vorbereitet.")
-    for guest_name, invite_code in invite_codes:
-        print(f"  {guest_name}: {invite_code}")
+        invite_codes.append((f"{event.name} - {first_name} {last_name}", invite_code))
+    return invite_codes
 
 
 if __name__ == "__main__":
-    create_demo_events()
-    print("Demo-Daten wurden erstellt.")
+    codes = create_demo_events()
+    print("Invite-Codes für Demo-Gäste:")
+    for guest_name, invite_code in codes:
+        print(f"  {guest_name}: {invite_code}")

@@ -1,0 +1,117 @@
+---
+- name: Create Event Planner demo instance
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    demo_admin_email: "demo-admin@example.com"
+    log_timestamp: "{{ lookup('pipe', 'date +%Y%mT%H%M%S') }}"
+    log_file: "{{ log_timestamp }}_event_planner_Demo.txt"
+  tasks:
+    - name: Ensure backup directory exists
+      ansible.builtin.file:
+        path: backups
+        state: directory
+        mode: "0750"
+
+    - name: Backup current database
+      ansible.builtin.shell: |
+        set -a
+        source .env
+        set +a
+        mysqldump --host="${DB_HOST}" --user="${DB_USER}" --password="${DB_PASSWORD}" "${DB_NAME}" > "backups/${DB_NAME}_backup_{{ log_timestamp }}.sql"
+      args:
+        executable: /bin/bash
+      register: db_backup
+      changed_when: true
+
+    - name: Drop and recreate database
+      ansible.builtin.shell: |
+        set -a
+        source .env
+        set +a
+        mysql --host="${DB_HOST}" --user="${DB_USER}" --password="${DB_PASSWORD}" -e "DROP DATABASE IF EXISTS \`${DB_NAME}\`; CREATE DATABASE \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+      args:
+        executable: /bin/bash
+      register: db_reset
+      changed_when: true
+
+    - name: Import database schema
+      ansible.builtin.shell: |
+        set -a
+        source .env
+        set +a
+        python -m scripts.init_database
+      args:
+        executable: /bin/bash
+      register: db_schema
+      changed_when: true
+
+    - name: Generate demo admin password
+      ansible.builtin.set_fact:
+        demo_admin_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}"
+
+    - name: Create demo admin user
+      ansible.builtin.command:
+        argv:
+          - python
+          - scripts/create_admin_headless.py
+          - --email
+          - "{{ demo_admin_email }}"
+          - --password
+          - "{{ demo_admin_password }}"
+          - --role
+          - super_admin
+      register: admin_create
+      changed_when: true
+
+    - name: Create demo guest data
+      ansible.builtin.command:
+        argv:
+          - python
+          - scripts/create_demo_data.py
+      register: demo_data
+      changed_when: true
+
+    - name: Write demo admin credentials file
+      ansible.builtin.copy:
+        dest: .demo_env
+        mode: "0600"
+        content: |
+          DEMO_ADMIN_EMAIL={{ demo_admin_email }}
+          DEMO_ADMIN_PASSWORD={{ demo_admin_password }}
+
+    - name: Build demo log content
+      ansible.builtin.copy:
+        dest: "{{ log_file }}"
+        mode: "0600"
+        content: |
+          Event Planner Demo-Protokoll
+          Zeitpunkt: {{ log_timestamp }}
+
+          Admin-Zugangsdaten:
+          Email: {{ demo_admin_email }}
+          Passwort: {{ demo_admin_password }}
+
+          TOTP-Secret und Admin-Output:
+          {{ admin_create.stdout | default('') }}
+
+          Datenbank-Backup:
+          {{ db_backup.stdout | default('') }}
+
+          Datenbank-Reset:
+          {{ db_reset.stdout | default('') }}
+          {{ db_schema.stdout | default('') }}
+
+          Demo-Daten:
+          {{ demo_data.stdout | default('') }}
+
+    - name: Send demo log via SMTP
+      ansible.builtin.command:
+        argv:
+          - python
+          - scripts/send_demo_log.py
+          - --log-file
+          - "{{ log_file }}"
+      register: mail_send
+      changed_when: true

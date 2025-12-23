@@ -185,6 +185,7 @@
               <th>Nachname</th>
               <th>Kategorie</th>
               <th>Max Personen</th>
+              <th>Angemeldete Personen</th>
               <th>Status</th>
               <th>Besonderer Hinweis</th>
               <th>Email (optional)</th>
@@ -200,6 +201,7 @@
               <td>{{ guest.last_name or '' }}</td>
               <td>{{ guest.category }}</td>
               <td>{{ guest.max_persons }}</td>
+              <td>{{ guest.confirmed_persons }}</td>
               <td>
                   <span class="badge text-bg-{{ status_classes.get(guest.status, 'secondary') }}">
                       {{ status_labels.get(guest.status, guest.status) }}
@@ -210,6 +212,34 @@
               <td>{{ guest.telephone or '—' }}</td>
               <td>{{ 'Ja' if guest.notify_admin else 'Nein' }}</td>
               <td class="text-end">
+                  {% set update_form = update_forms[guest.id] %}
+                  <form method="post" action="{{ url_for('admin.update_guest_status', event_id=active_event.id, guest_id=guest.id) }}" class="mb-2">
+                      {{ update_form.hidden_tag() }}
+                      <div class="d-flex flex-column gap-2">
+                          <div>
+                              <label class="form-label small mb-1" for="status-{{ guest.id }}">Status</label>
+                              <select class="form-select form-select-sm" id="status-{{ guest.id }}" name="status">
+                                  {% for value, label in update_form.status.choices %}
+                                  <option value="{{ value }}" {% if guest.status == value %}selected{% endif %}>{{ label }}</option>
+                                  {% endfor %}
+                              </select>
+                          </div>
+                          <div>
+                              <label class="form-label small mb-1" for="confirmed-{{ guest.id }}">Bestätigte Personen</label>
+                              <input
+                                  class="form-control form-control-sm"
+                                  id="confirmed-{{ guest.id }}"
+                                  max="{{ guest.max_persons }}"
+                                  min="0"
+                                  name="confirmed_persons"
+                                  type="number"
+                                  value="{{ guest.confirmed_persons }}"
+                              >
+                              <div class="form-text">Max {{ guest.max_persons }}</div>
+                          </div>
+                          <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
+                      </div>
+                  </form>
                   {% if guest.email %}
                   <form method="post" action="{{ url_for('admin.send_guest_email', event_id=active_event.id, guest_id=guest.id) }}" class="d-inline">
                       {{ action_form.csrf_token }}

@@ -151,3 +151,25 @@ class GuestActionForm(FlaskForm):
     guest_id = HiddenField(validators=[DataRequired()])
     action = HiddenField(validators=[DataRequired()])
     submit_action = SubmitField("Aktion ausführen")
+
+
+class GuestUpdateForm(FlaskForm):
+    """Form for updating guest status and confirmed persons in the admin area."""
+
+    guest_id = HiddenField(validators=[DataRequired()])
+    status = SelectField(
+        "Status",
+        choices=[
+            ("safe_the_date", "Save the Date"),
+            ("zusage", "Zusage"),
+            ("absage", "Absage"),
+            ("unsicher", "Unsicher"),
+        ],
+        validators=[DataRequired()],
+    )
+    confirmed_persons = IntegerField(
+        "Angemeldete Personen",
+        validators=[Optional(), NumberRange(min=0)],
+        default=0,
+    )
+    submit = SubmitField("Speichern")
