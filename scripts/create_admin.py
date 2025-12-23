@@ -1,17 +1,16 @@
-"""
-Hilfsskript zum Anlegen eines Admin-Users mit TOTP-Secret.
+"""Headless helper to create admin users including their TOTP secret.
 
-Kann sowohl lokal als auch auf dem Strato-Server verwendet werden.
-Voraussetzung:
-- create_app/db in app/__init__.py, AdminUser/Event in app/models.py
-- .env mit gültigen DB-Zugangsdaten
+This script is safe to run on Strato (no interactive prompts, no compilers).
 """
 
-import getpass
+from __future__ import annotations
+
+import argparse
 import sys
 from pathlib import Path
 
 import pyotp
+from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash
 
 # Ensure the project root is importable when running from the scripts/ directory.
@@ -23,84 +22,70 @@ from app import create_app, db
 from app.models import AdminUser, Event
 
 
-app = create_app()
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Create an admin user without interactive prompts.")
+    parser.add_argument("--email", required=True, help="Admin-E-Mail-Adresse")
+    parser.add_argument("--password", required=True, help="Passwort für den Admin")
+    parser.add_argument(
+        "--role",
+        choices=["super_admin", "event_admin"],
+        default="super_admin",
+        help="Rolle des Admins",
+    )
+    parser.add_argument(
+        "--event-id",
+        type=int,
+        help="Event-ID (erforderlich für event_admin)",
+    )
+    parser.add_argument(
+        "--fail-on-existing",
+        action="store_true",
+        help="Mit Exit-Code 1 abbrechen, falls der Admin bereits existiert.",
+    )
+    return parser.parse_args()
 
 
-def main():
-    print("=== Admin-User anlegen ===")
-
-    email = input("Admin-E-Mail: ").strip()
-    if not email:
-        print("E-Mail darf nicht leer sein.")
-        return
-
-    password = getpass.getpass("Passwort fuer den Admin: ")
-    if not password:
-        print("Passwort darf nicht leer sein.")
-        return
-
-    role = input("Rolle [super_admin/event_admin] (Default: super_admin): ").strip() or "super_admin"
-    if role not in ("super_admin", "event_admin"):
-        print("Ungueltige Rolle, erwarte 'super_admin' oder 'event_admin'.")
-        return
-
-    # Optional: Event verknuepfen (nur relevant fuer event_admin)
-    assigned_event = None
-    if role == "event_admin":
-        event_name = input("Name des Events fuer diesen Admin (optional, Enter fuer kein Event): ").strip()
-        if event_name:
-            # Event nach Name suchen oder neu anlegen
-            assigned_event = Event.query.filter_by(name=event_name).first()
-            if not assigned_event:
-                desc = input("Beschreibung fuer das Event (optional): ").strip()
-                assigned_event = Event(name=event_name, description=desc or None)
-                db.session.add(assigned_event)
-                db.session.commit()
-                print(f"Event angelegt: id={assigned_event.id}, name={assigned_event.name}")
+def main() -> int:
+    args = _parse_args()
+    load_dotenv()
+    app = create_app()
 
     with app.app_context():
-        # Pruefen, ob es die E-Mail schon gibt
-        existing = AdminUser.query.filter_by(email=email).first()
+        existing = AdminUser.query.filter_by(email=args.email).first()
         if existing:
-            print(f"Es existiert bereits ein Admin mit der E-Mail {email}. Abbruch.")
-            return
+            print(f"Admin mit der E-Mail {args.email} existiert bereits.")
+            return 1 if args.fail_on_existing else 0
 
-        # TOTP-Secret erzeugen
+        assigned_event = None
+        if args.role == "event_admin":
+            if not args.event_id:
+                print("Für event_admin muss --event-id angegeben werden.", file=sys.stderr)
+                return 1
+            assigned_event = Event.query.get(args.event_id)
+            if not assigned_event:
+                print(f"Kein Event mit ID {args.event_id} gefunden.", file=sys.stderr)
+                return 1
+
         secret = pyotp.random_base32()
-
-        user_kwargs = {
-            "email": email,
-            "password_hash": generate_password_hash(password),
-            "totp_secret": secret,
-            "role": role,
-        }
-
-        # Falls das Modell ein assigned_event_id oder eine Beziehung hat
-        # kannst du es hier ggf. anpassen – diese Variante geht davon aus,
-        # dass du bei event_admin ein Event zuweisen kannst, es bei super_admin aber ignoriert wird.
-        if role == "event_admin" and assigned_event is not None:
-            # Viele ORMs haben entweder assigned_event oder assigned_event_id – passe das ggf. an.
-            # Wenn dein Modell ein Feld "assigned_event_id" hat:
-            user_kwargs["assigned_event_id"] = assigned_event.id
-
-        user = AdminUser(**user_kwargs)
+        user = AdminUser(
+            email=args.email,
+            password_hash=generate_password_hash(args.password),
+            totp_secret=secret,
+            role=args.role,
+            event=assigned_event,
+        )
         db.session.add(user)
         db.session.commit()
 
-        print("\nAdmin erfolgreich angelegt:")
-        print(f"  E-Mail: {user.email}")
-        print(f"  Rolle:  {user.role}")
-        if role == "event_admin" and assigned_event is not None:
-            print(f"  Event:  {assigned_event.id} - {assigned_event.name}")
+        print(f"ADMIN_EMAIL={user.email}")
+        print(f"ADMIN_ROLE={user.role}")
+        print(f"ADMIN_ID={user.id}")
+        if assigned_event:
+            print(f"ADMIN_EVENT_ID={assigned_event.id}")
+        print(f"TOTP_SECRET={secret}")
 
-        print("\nTOTP-Secret (fuer deine Authenticator-App – wird nur jetzt angezeigt):")
-        print(f"  {secret}")
-        print("\nSpeichere dieses Secret sofort sicher (z.B. Passwort-Tresor) oder erzeuge einen otpauth-QR-Code fuer den Import in eine TOTP-App.")
-        print("Es wird spaeter nicht erneut angezeigt; bei Verlust muss ein neues Secret gesetzt und der Benutzer neu initialisiert werden.")
-        print("Danach kannst du dich mit E-Mail + Passwort + TOTP-Code anmelden.")
+    return 0
 
 
 if __name__ == "__main__":
-    # App-Context sicherstellen
-    with app.app_context():
-        main()
+    raise SystemExit(main())

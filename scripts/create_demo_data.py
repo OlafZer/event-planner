@@ -1,5 +1,8 @@
-"""Demo-Daten für lokale Entwicklung erzeugen."""
+"""Demo-Daten erzeugen und Invite-Codes strukturiert ausgeben."""
 
+from __future__ import annotations
+
+import argparse
 import random
 import sys
 from datetime import datetime, timedelta
@@ -17,12 +20,21 @@ from app import create_app, db
 from app.models import Event, Guest
 from app.utils import ALLOWED_CATEGORIES, generate_invite_code, hash_invite_code
 
-load_dotenv()
 faker = Faker("de_DE")
-app = create_app()
 
 
-def create_demo_events() -> list[tuple[str, str]]:
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Erzeuge Demo-Daten ohne Benutzerinteraktion.")
+    parser.add_argument(
+        "--guests-per-event",
+        type=int,
+        default=15,
+        help="Anzahl der Gäste pro Event",
+    )
+    return parser.parse_args()
+
+
+def create_demo_events(guests_per_event: int) -> list[tuple[str, str, str]]:
     """Create demo events with fixed prefixes for local development."""
     demo_events = [
         {
@@ -43,35 +55,33 @@ def create_demo_events() -> list[tuple[str, str]]:
         },
     ]
 
-    invite_codes: list[tuple[str, str]] = []
-    with app.app_context():
-        for entry in demo_events:
-            existing = Event.query.filter_by(name=entry["name"]).first()
-            if existing:
-                event = existing
-                if event.code_prefix != entry["code_prefix"]:
-                    event.code_prefix = entry["code_prefix"]
-                    db.session.add(event)
-            else:
-                event = Event(
-                    name=entry["name"],
-                    description=entry["description"],
-                    event_date=datetime.utcnow() + timedelta(days=entry["days_in_future"]),
-                    invitation_text=entry["invitation_text"],
-                    background_image_url=entry["background_image_url"],
-                    code_prefix=entry["code_prefix"],
-                )
+    invite_codes: list[tuple[str, str, str]] = []
+    for entry in demo_events:
+        event = Event.query.filter_by(name=entry["name"]).first()
+        if event:
+            if event.code_prefix != entry["code_prefix"]:
+                event.code_prefix = entry["code_prefix"]
                 db.session.add(event)
-                db.session.commit()
-            invite_codes.extend(create_demo_guests(event))
-        db.session.commit()
+        else:
+            event = Event(
+                name=entry["name"],
+                description=entry["description"],
+                event_date=datetime.utcnow() + timedelta(days=entry["days_in_future"]),
+                invitation_text=entry["invitation_text"],
+                background_image_url=entry["background_image_url"],
+                code_prefix=entry["code_prefix"],
+            )
+            db.session.add(event)
+            db.session.commit()
+        invite_codes.extend(create_demo_guests(event, guests_per_event))
+    db.session.commit()
     return invite_codes
 
 
-def create_demo_guests(event: Event, count: int = 15) -> list[tuple[str, str]]:
+def create_demo_guests(event: Event, count: int) -> list[tuple[str, str, str]]:
     """Generate demo guests for the given event."""
     status_choices = ["safe_the_date", "zusage", "absage", "unsicher"]
-    invite_codes: list[tuple[str, str]] = []
+    invite_codes: list[tuple[str, str, str]] = []
     for _ in range(count):
         first_name = faker.first_name()
         last_name = faker.last_name()
@@ -90,12 +100,27 @@ def create_demo_guests(event: Event, count: int = 15) -> list[tuple[str, str]]:
             notify_admin=random.choice([True, False]),
         )
         db.session.add(guest)
-        invite_codes.append((f"{event.name} - {first_name} {last_name}", invite_code))
+        invite_codes.append((event.name, f"{first_name} {last_name}", invite_code))
     return invite_codes
 
 
+def main() -> int:
+    args = _parse_args()
+    if args.guests_per_event < 1:
+        print("Die Anzahl Gäste pro Event muss mindestens 1 sein.", file=sys.stderr)
+        return 1
+
+    load_dotenv()
+    app = create_app()
+    with app.app_context():
+        codes = create_demo_events(args.guests_per_event)
+
+    print("INVITE_CODES_START")
+    for event_name, guest_name, invite_code in codes:
+        print(f"INVITE_CODE|{event_name}|{guest_name}|{invite_code}")
+    print("INVITE_CODES_END")
+    return 0
+
+
 if __name__ == "__main__":
-    codes = create_demo_events()
-    print("Invite-Codes für Demo-Gäste:")
-    for guest_name, invite_code in codes:
-        print(f"  {guest_name}: {invite_code}")
+    raise SystemExit(main())

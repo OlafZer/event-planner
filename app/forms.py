@@ -168,7 +168,7 @@ class GuestUpdateForm(FlaskForm):
         validators=[DataRequired()],
     )
     confirmed_persons = IntegerField(
-        "Angemeldete Personen",
+        "Bestätigte Personen",
         validators=[Optional(), NumberRange(min=0)],
         default=0,
     )

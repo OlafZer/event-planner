@@ -1,0 +1,147 @@
+---
+- name: Provision Event Planner demo instance with demo data
+  hosts: all
+  gather_facts: false
+  vars:
+    project_root: "{{ playbook_dir }}"
+    venv_python: "{{ project_root }}/venv/bin/python"
+    env_file: "{{ project_root }}/.env"
+    backup_dir: "{{ project_root }}/backups"
+    log_timestamp: "{{ lookup('pipe', 'date +%Y%m%dT%H%M%S') }}"
+    log_file: "{{ project_root }}/{{ log_timestamp }}_event_planner_Demo.txt"
+    demo_admin_email: "demo-admin@example.com"
+    guests_per_event: 15
+    update_env_admin: false
+  tasks:
+    - name: Ensure backup directory exists
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: "0750"
+
+    - name: Backup current database
+      ansible.builtin.shell: |
+        set -a
+        source "{{ env_file }}"
+        set +a
+        mysqldump --host="${DB_HOST}" --user="${DB_USER}" --password="${DB_PASSWORD}" "${DB_NAME}" > "{{ backup_dir }}/\${DB_NAME}_backup_{{ log_timestamp }}.sql"
+      args:
+        executable: /bin/bash
+        chdir: "{{ project_root }}"
+      register: db_backup
+      changed_when: true
+
+    - name: Drop and recreate database
+      ansible.builtin.shell: |
+        set -a
+        source "{{ env_file }}"
+        set +a
+        mysql --host="${DB_HOST}" --user="${DB_USER}" --password="${DB_PASSWORD}" -e "DROP DATABASE IF EXISTS \`${DB_NAME}\`; CREATE DATABASE \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+      args:
+        executable: /bin/bash
+        chdir: "{{ project_root }}"
+      register: db_reset
+      changed_when: true
+
+    - name: Import database schema
+      ansible.builtin.command:
+        argv:
+          - "{{ venv_python }}"
+          - -m
+          - scripts.init_database
+      args:
+        chdir: "{{ project_root }}"
+      register: db_schema
+      changed_when: true
+
+    - name: Generate demo admin password
+      ansible.builtin.set_fact:
+        demo_admin_password: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}"
+
+    - name: Create demo admin user
+      ansible.builtin.command:
+        argv:
+          - "{{ venv_python }}"
+          - scripts/create_admin.py
+          - --email
+          - "{{ demo_admin_email }}"
+          - --password
+          - "{{ demo_admin_password }}"
+          - --role
+          - super_admin
+      args:
+        chdir: "{{ project_root }}"
+      register: admin_create
+      changed_when: "'ADMIN_EMAIL=' in admin_create.stdout"
+
+    - name: Extract TOTP secret from admin creation
+      ansible.builtin.set_fact:
+        demo_totp_secret: "{{ admin_create.stdout_lines | select('match', '^TOTP_SECRET=') | map('regex_replace', '^TOTP_SECRET=', '') | list | first | default('') }}"
+
+    - name: Optionally persist demo admin credentials in .env
+      ansible.builtin.blockinfile:
+        path: "{{ env_file }}"
+        marker: "# {mark} DEMO ADMIN CREDENTIALS"
+        block: |
+          DEMO_ADMIN_EMAIL={{ demo_admin_email }}
+          DEMO_ADMIN_PASSWORD={{ demo_admin_password }}
+          DEMO_ADMIN_TOTP={{ demo_totp_secret }}
+      when: update_env_admin | bool
+
+    - name: Create demo guest data
+      ansible.builtin.command:
+        argv:
+          - "{{ venv_python }}"
+          - scripts/create_demo_data.py
+          - --guests-per-event
+          - "{{ guests_per_event }}"
+      args:
+        chdir: "{{ project_root }}"
+      register: demo_data
+      changed_when: true
+
+    - name: Collect invite codes from output
+      ansible.builtin.set_fact:
+        invite_codes: "{{ demo_data.stdout_lines | select('match', '^INVITE_CODE\\|') | list }}"
+
+    - name: Build demo log content
+      ansible.builtin.copy:
+        dest: "{{ log_file }}"
+        mode: "0600"
+        content: |
+          Event Planner Demo-Protokoll
+          Zeitpunkt: {{ log_timestamp }}
+
+          Admin-Zugangsdaten:
+          Email: {{ demo_admin_email }}
+          Passwort: {{ demo_admin_password }}
+          TOTP-Secret: {{ demo_totp_secret }}
+
+          TOTP/Anlegen Ausgabe:
+          {{ admin_create.stdout | default('') }}
+
+          Datenbank-Backup:
+          {{ db_backup.stdout | default('') }}
+
+          Datenbank-Reset:
+          {{ db_reset.stdout | default('') }}
+          {{ db_schema.stdout | default('') }}
+
+          Invite-Codes:
+          {% for line in invite_codes %}
+          {{ line }}
+          {% endfor %}
+
+    - name: Send demo log via helper script
+      ansible.builtin.command:
+        argv:
+          - "{{ venv_python }}"
+          - scripts/send_demo_log.py
+          - --log-file
+          - "{{ log_file }}"
+          - --recipient
+          - "{{ demo_admin_email }}"
+      args:
+        chdir: "{{ project_root }}"
+      register: mail_send
+      changed_when: true

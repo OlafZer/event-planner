@@ -185,7 +185,7 @@
               <th>Nachname</th>
               <th>Kategorie</th>
               <th>Max Personen</th>
-              <th>Angemeldete Personen</th>
+              <th>Pers. (Bestätigt)</th>
               <th>Status</th>
               <th>Besonderer Hinweis</th>
               <th>Email (optional)</th>
@@ -212,51 +212,71 @@
               <td>{{ guest.telephone or '—' }}</td>
               <td>{{ 'Ja' if guest.notify_admin else 'Nein' }}</td>
               <td class="text-end">
-                  {% set update_form = update_forms[guest.id] %}
-                  <form method="post" action="{{ url_for('admin.update_guest_status', event_id=active_event.id, guest_id=guest.id) }}" class="mb-2">
-                      {{ update_form.hidden_tag() }}
-                      <div class="d-flex flex-column gap-2">
-                          <div>
-                              <label class="form-label small mb-1" for="status-{{ guest.id }}">Status</label>
-                              <select class="form-select form-select-sm" id="status-{{ guest.id }}" name="status">
-                                  {% for value, label in update_form.status.choices %}
-                                  <option value="{{ value }}" {% if guest.status == value %}selected{% endif %}>{{ label }}</option>
-                                  {% endfor %}
-                              </select>
-                          </div>
-                          <div>
-                              <label class="form-label small mb-1" for="confirmed-{{ guest.id }}">Bestätigte Personen</label>
-                              <input
-                                  class="form-control form-control-sm"
-                                  id="confirmed-{{ guest.id }}"
-                                  max="{{ guest.max_persons }}"
-                                  min="0"
-                                  name="confirmed_persons"
-                                  type="number"
-                                  value="{{ guest.confirmed_persons }}"
-                              >
-                              <div class="form-text">Max {{ guest.max_persons }}</div>
-                          </div>
-                          <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
-                      </div>
-                  </form>
-                  {% if guest.email %}
-                  <form method="post" action="{{ url_for('admin.send_guest_email', event_id=active_event.id, guest_id=guest.id) }}" class="d-inline">
-                      {{ action_form.csrf_token }}
-                      <input type="hidden" name="guest_id" value="{{ guest.id }}">
-                      <input type="hidden" name="action" value="email">
-                      <button type="submit" class="btn btn-sm btn-outline-primary">E-Mail senden</button>
-                  </form>
-                  {% endif %}
-                  <button type="button" class="btn btn-sm btn-outline-secondary copy-text" data-text="Hallo {{ guest.first_name }}, hier ist deine Einladung für {{ active_event.name }}: {{ url_for('public.invite', event_id=active_event.id, code=guest.invite_code_hash, _external=True) }}">
-                    Text kopieren
-                  </button>
-                  <a class="btn btn-sm btn-outline-success" href="{{ url_for('admin.download_guest_pdf', event_id=active_event.id, guest_id=guest.id) }}">PDF laden</a>
+                  <div class="d-flex flex-column gap-2 align-items-end">
+                      <button
+                          type="button"
+                          class="btn btn-sm btn-primary"
+                          data-bs-toggle="modal"
+                          data-bs-target="#editGuestModal-{{ guest.id }}"
+                      >
+                          Bearbeiten
+                      </button>
+                      {% if guest.email %}
+                      <form method="post" action="{{ url_for('admin.send_guest_email', event_id=active_event.id, guest_id=guest.id) }}" class="w-100">
+                          {{ action_form.csrf_token }}
+                          <input type="hidden" name="guest_id" value="{{ guest.id }}">
+                          <input type="hidden" name="action" value="email">
+                          <button type="submit" class="btn btn-sm btn-outline-primary w-100">E-Mail senden</button>
+                      </form>
+                      {% endif %}
+                      <button type="button" class="btn btn-sm btn-outline-secondary copy-text w-100" data-text="Hallo {{ guest.first_name }}, hier ist deine Einladung für {{ active_event.name }}: {{ url_for('public.invite', event_id=active_event.id, code=guest.invite_code_hash, _external=True) }}">
+                        Text kopieren
+                      </button>
+                      <a class="btn btn-sm btn-outline-success w-100" href="{{ url_for('admin.download_guest_pdf', event_id=active_event.id, guest_id=guest.id) }}">PDF laden</a>
+                  </div>
               </td>
           </tr>
           {% endfor %}
       </tbody>
   </table>
+  {% for guest in guests %}
+  {% set update_form = update_forms[guest.id] %}
+  <div class="modal fade" id="editGuestModal-{{ guest.id }}" tabindex="-1" aria-labelledby="editGuestLabel-{{ guest.id }}" aria-hidden="true">
+      <div class="modal-dialog">
+          <div class="modal-content">
+              <div class="modal-header">
+                  <h5 class="modal-title" id="editGuestLabel-{{ guest.id }}">Gast bearbeiten: {{ guest.first_name }} {{ guest.last_name or '' }}</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+              </div>
+              <form method="post" action="{{ url_for('admin.update_guest_status', event_id=active_event.id, guest_id=guest.id) }}">
+                  {{ update_form.hidden_tag() }}
+                  <div class="modal-body">
+                      <div class="mb-3">
+                          <label class="form-label" for="status-{{ guest.id }}">Status</label>
+                          {{ update_form.status(class_='form-select', id='status-' ~ guest.id) }}
+                      </div>
+                      <div class="mb-3">
+                          <label class="form-label" for="confirmed-{{ guest.id }}">Bestätigte Personen</label>
+                          {{ update_form.confirmed_persons(
+                              class_='form-control',
+                              id='confirmed-' ~ guest.id,
+                              type='number',
+                              min=0,
+                              max=guest.max_persons
+                          ) }}
+                          <div class="form-text">Max {{ guest.max_persons }}</div>
+                      </div>
+                      <p class="mb-0 text-muted small">Maximale Personen laut Einladung: {{ guest.max_persons }}</p>
+                  </div>
+                  <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                      <button type="submit" class="btn btn-primary">Speichern</button>
+                  </div>
+              </form>
+          </div>
+      </div>
+  </div>
+  {% endfor %}
   {% endif %}
 {% endblock %}
 
