@@ -41,7 +41,7 @@ class Guest(db.Model):
     invite_code_hash = db.Column(db.String(64), nullable=False, unique=True)
     email = db.Column(db.String(255), nullable=True)
     telephone = db.Column(db.String(50), nullable=True)
-    status = db.Column(db.String(20), nullable=False, default="safe_the_date")
+    status = db.Column(db.String(20), nullable=False, default="save_the_date")
     confirmed_persons = db.Column(db.Integer, nullable=False, default=0)
     notes = db.Column(db.Text, nullable=True)
     notify_admin = db.Column(db.Boolean, nullable=False, default=True)

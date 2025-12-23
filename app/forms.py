@@ -41,7 +41,7 @@ class InviteForm(FlaskForm):
     status = SelectField(
         "Status",
         choices=[
-            ("safe_the_date", "Save the Date"),
+            ("save_the_date", "Save the Date"),
             ("zusage", "Zusage"),
             ("absage", "Absage"),
             ("unsicher", "Unsicher"),
@@ -160,7 +160,7 @@ class GuestUpdateForm(FlaskForm):
     status = SelectField(
         "Status",
         choices=[
-            ("safe_the_date", "Save the Date"),
+            ("save_the_date", "Save the Date"),
             ("zusage", "Zusage"),
             ("absage", "Absage"),
             ("unsicher", "Unsicher"),

@@ -219,71 +219,83 @@ def admin_dashboard() -> Response | str:
         imported = 0
         errors = []
         new_guests = []
-        with io.TextIOWrapper(upload_form.file.data.stream, encoding="utf-8") as stream:
-            reader = csv.DictReader(stream)
-            if set(reader.fieldnames or []) != required_headers:
-                flash(
-                    "CSV-Header stimmen nicht: erwartet name, nachname, kategorie, max_persons, invite_code, email, telephone, notify_admin",
-                    "danger",
+        raw_bytes = upload_form.file.data.stream.read()
+        decoded_content = None
+        last_error = ""
+        for encoding in ("utf-8-sig", "latin-1"):
+            try:
+                decoded_content = raw_bytes.decode(encoding)
+                break
+            except UnicodeDecodeError as exc:
+                last_error = str(exc)
+        if decoded_content is None:
+            flash(f"CSV konnte nicht gelesen werden: {last_error or 'Unbekannte Kodierung'}", "danger")
+            return redirect(url_for("admin.admin_dashboard", event_id=target_event_id))
+
+        reader = csv.DictReader(io.StringIO(decoded_content))
+        if set(reader.fieldnames or []) != required_headers:
+            flash(
+                "CSV-Header stimmen nicht: erwartet name, nachname, kategorie, max_persons, invite_code, email, telephone, notify_admin",
+                "danger",
+            )
+            return redirect(url_for("admin.admin_dashboard", event_id=target_event_id))
+
+        for index, row in enumerate(reader, start=2):
+            first_name = (row.get("name") or "").strip()
+            last_name = (row.get("nachname") or "").strip() or None
+            category = (row.get("kategorie") or "").strip()
+            max_persons_raw = (row.get("max_persons") or "").strip()
+            invite_code = (row.get("invite_code") or "").strip()
+            email_value = (row.get("email") or "").strip() or None
+            telephone = (row.get("telephone") or "").strip() or None
+            notify_raw = (row.get("notify_admin") or "").strip().lower()
+
+            if not first_name:
+                errors.append(f"Zeile {index}: Name fehlt")
+                continue
+            if category not in ALLOWED_CATEGORIES:
+                errors.append(f"Zeile {index}: Kategorie '{category}' ist nicht erlaubt")
+                continue
+            try:
+                max_persons = int(max_persons_raw)
+            except ValueError:
+                errors.append(f"Zeile {index}: max_persons muss eine Zahl sein")
+                continue
+            if max_persons < 1:
+                errors.append(f"Zeile {index}: max_persons muss >= 1 sein")
+                continue
+            normalized_code = _validate_invite_code_for_event(invite_code, target_event)
+            if not normalized_code:
+                errors.append(
+                    f"Zeile {index}: Invite-Code ungültig oder Prefix passt nicht (erwartet {target_event.code_prefix})"
                 )
-                return redirect(url_for("admin.admin_dashboard", event_id=target_event_id))
+                continue
+            if email_value and not is_valid_email(email_value):
+                errors.append(f"Zeile {index}: Ungültige E-Mail '{email_value}'")
+                continue
 
-            for index, row in enumerate(reader, start=2):
-                first_name = (row.get("name") or "").strip()
-                last_name = (row.get("nachname") or "").strip() or None
-                category = (row.get("kategorie") or "").strip()
-                max_persons_raw = (row.get("max_persons") or "").strip()
-                invite_code = (row.get("invite_code") or "").strip()
-                email_value = (row.get("email") or "").strip() or None
-                telephone = (row.get("telephone") or "").strip() or None
-                notify_raw = (row.get("notify_admin") or "").strip().lower()
+            code_hash = hash_invite_code(normalized_code)
+            if code_hash in existing_hashes:
+                errors.append(f"Zeile {index}: Invite-Code bereits vergeben")
+                continue
+            existing_hashes.add(code_hash)
 
-                if not first_name:
-                    errors.append(f"Zeile {index}: Name fehlt")
-                    continue
-                if category not in ALLOWED_CATEGORIES:
-                    errors.append(f"Zeile {index}: Kategorie '{category}' ist nicht erlaubt")
-                    continue
-                try:
-                    max_persons = int(max_persons_raw)
-                except ValueError:
-                    errors.append(f"Zeile {index}: max_persons muss eine Zahl sein")
-                    continue
-                if max_persons < 1:
-                    errors.append(f"Zeile {index}: max_persons muss >= 1 sein")
-                    continue
-                normalized_code = _validate_invite_code_for_event(invite_code, target_event)
-                if not normalized_code:
-                    errors.append(
-                        f"Zeile {index}: Invite-Code ungültig oder Prefix passt nicht (erwartet {target_event.code_prefix})"
-                    )
-                    continue
-                if email_value and not is_valid_email(email_value):
-                    errors.append(f"Zeile {index}: Ungültige E-Mail '{email_value}'")
-                    continue
+            notify_admin_value = notify_raw in {"1", "true", "yes", "ja", "y"}
 
-                code_hash = hash_invite_code(normalized_code)
-                if code_hash in existing_hashes:
-                    errors.append(f"Zeile {index}: Invite-Code bereits vergeben")
-                    continue
-                existing_hashes.add(code_hash)
-
-                notify_admin_value = notify_raw in {"1", "true", "yes", "ja", "y"}
-
-                new_guests.append(
-                    Guest(
-                        event_id=target_event.id,
-                        first_name=first_name,
-                        last_name=last_name,
-                        category=category,
-                        max_persons=max_persons,
-                        invite_code_hash=code_hash,
-                        email=email_value,
-                        telephone=telephone,
-                        notify_admin=notify_admin_value,
-                    )
+            new_guests.append(
+                Guest(
+                    event_id=target_event.id,
+                    first_name=first_name,
+                    last_name=last_name,
+                    category=category,
+                    max_persons=max_persons,
+                    invite_code_hash=code_hash,
+                    email=email_value,
+                    telephone=telephone,
+                    notify_admin=notify_admin_value,
                 )
-                imported += 1
+            )
+            imported += 1
         if new_guests:
             db.session.bulk_save_objects(new_guests)
             db.session.commit()
@@ -423,7 +435,7 @@ def send_guest_email(event_id: int, guest_id: int) -> Response:
 
     invite_url = url_for("public.invite", event_id=event_id, code=guest.invite_code_hash, _external=True)
     pdf_bytes = build_invite_pdf(guest, guest.event, invite_url)
-    sent = send_email(
+    sent, error = send_email(
         subject=f"Deine Einladung zu {guest.event.name}",
         recipients=[guest.email],
         html_body=(
@@ -436,7 +448,7 @@ def send_guest_email(event_id: int, guest_id: int) -> Response:
     if sent:
         flash("E-Mail wurde versendet.", "success")
     else:
-        flash("Mail-Versand ist nicht konfiguriert.", "warning")
+        flash(f"Mail-Versand fehlgeschlagen: {error or 'Unbekannter Fehler'}", "warning")
     return redirect(url_for("admin.admin_dashboard", event_id=event_id))
 
 

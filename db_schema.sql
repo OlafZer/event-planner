@@ -1,6 +1,6 @@
 -- SQL schema for secure party invitation application on MariaDB.
 
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL UNIQUE,
     code_prefix CHAR(2) NOT NULL UNIQUE,
@@ -11,7 +11,7 @@ CREATE TABLE events (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE admin_user (
+CREATE TABLE IF NOT EXISTS admin_user (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE admin_user (
     CONSTRAINT fk_admin_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL
 );
 
-CREATE TABLE guests (
+CREATE TABLE IF NOT EXISTS guests (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     event_id BIGINT UNSIGNED NOT NULL,
     first_name VARCHAR(150) NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE guests (
     invite_code_hash CHAR(64) NOT NULL UNIQUE,
     email VARCHAR(255) NULL,
     telephone VARCHAR(50) NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'safe_the_date',
+    status VARCHAR(20) NOT NULL DEFAULT 'save_the_date',
     confirmed_persons INT NOT NULL DEFAULT 0,
     notes TEXT NULL,
     notify_admin TINYINT(1) NOT NULL DEFAULT 1,
@@ -40,7 +40,7 @@ CREATE TABLE guests (
     CONSTRAINT fk_guests_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
 );
 
-CREATE TABLE access_log (
+CREATE TABLE IF NOT EXISTS access_log (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     event_id BIGINT UNSIGNED NOT NULL,
     guest_id BIGINT UNSIGNED NOT NULL,

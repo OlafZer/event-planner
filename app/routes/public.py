@@ -6,7 +6,7 @@ import re
 from html import escape
 from typing import Optional
 
-from flask import Blueprint, Response, abort, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, send_file, url_for
 from wtforms.validators import NumberRange, Optional as OptionalValidator
 
 from app import db
@@ -107,7 +107,7 @@ def invite(event_id: int, code: str) -> Response | str:
                 notes_html = ""
                 if guest_notes:
                     notes_html = f"<p><strong>Besondere Hinweise:</strong> {escape(guest_notes)}</p>"
-                send_email(
+                sent, error = send_email(
                     subject=f"Status-Update von {guest.first_name} {guest.last_name or ''}",
                     recipients=recipients,
                     html_body=(
@@ -115,11 +115,13 @@ def invite(event_id: int, code: str) -> Response | str:
                         f" gesetzt.</p><p>Personen: {confirmed}/{guest.max_persons}</p>{notes_html}"
                     ),
                 )
+                if not sent:
+                    current_app.logger.warning("Status-Update konnte nicht per E-Mail versendet werden: %s", error)
         flash("Danke für deine Rückmeldung!", "success")
         return redirect(url_for("public.invite", event_id=event_id, code=code))
 
     if request.method == "GET":
-        form.status.data = getattr(guest, "status", "safe_the_date")
+        form.status.data = getattr(guest, "status", "save_the_date")
         form.confirmed_persons.data = getattr(guest, "confirmed_persons", 0)
         form.notes.data = getattr(guest, "notes", "")
 

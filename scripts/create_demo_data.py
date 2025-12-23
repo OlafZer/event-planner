@@ -80,7 +80,7 @@ def create_demo_events(guests_per_event: int) -> list[tuple[str, str, str]]:
 
 def create_demo_guests(event: Event, count: int) -> list[tuple[str, str, str]]:
     """Generate demo guests for the given event."""
-    status_choices = ["safe_the_date", "zusage", "absage", "unsicher"]
+    status_choices = ["save_the_date", "zusage", "absage", "unsicher"]
     invite_codes: list[tuple[str, str, str]] = []
     for _ in range(count):
         first_name = faker.first_name()

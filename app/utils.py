@@ -89,20 +89,21 @@ def _mail_configured() -> bool:
 
 def send_email(
     subject: str, recipients: list[str], html_body: str, attachments: Optional[list[tuple[str, bytes]]] = None
-) -> bool:
-    """Send an email with optional PDF attachments, returning False on failure."""
+) -> tuple[bool, Optional[str]]:
+    """Send an email with optional PDF attachments, returning error details on failure."""
 
     if not _mail_configured():
-        return False
+        return False, "Mail-Versand ist nicht konfiguriert."
+
     message = Message(subject=subject, recipients=recipients, html=html_body)
     for filename, content in attachments or []:
         message.attach(filename=filename, content_type="application/pdf", data=content)
     try:
         mail.send(message)
-    except Exception:
+    except Exception as exc:  # pragma: no cover - defensive logging
         logging.getLogger(__name__).exception("Failed to send email")
-        return False
-    return True
+        return False, str(exc) or exc.__class__.__name__
+    return True, None
 
 
 def generate_qr_png(data: str) -> BytesIO:
