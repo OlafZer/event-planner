@@ -20,6 +20,21 @@
 2. Das Playbook legt eine Sicherung der Datenbank an, setzt sie zurück, erstellt Demo-Daten
    und sendet das Log per E-Mail.
 
+## Neues Playbook `create_demo_instance.yml`
+
+Dieses Playbook nutzt die headless Skripte (`scripts/create_admin.py`, `scripts/create_demo_data.py`,
+`scripts/send_demo_log.py`), führt alle Befehle im virtuellen Environment aus und protokolliert die
+Invite-Codes strukturiert.
+
+Beispielaufruf:
+
+```bash
+ansible-playbook create_demo_instance.yml \
+  -e "demo_admin_email=demo-admin@example.com" \
+  -e "guests_per_event=20" \
+  -e "update_env_admin=true"
+```
+
 ## Ergebnisdateien
 
 - `.demo_env` enthält die Zugangsdaten des Demo-Admins.
