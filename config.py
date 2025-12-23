@@ -18,11 +18,12 @@ class BaseConfig:
     SECRET_KEY: str = os.environ.get("FLASK_SECRET_KEY", "dev-secret-change-me")
     SECURITY_PASSWORD_SALT: str = os.environ.get("SECURITY_PASSWORD_SALT", "")
     _db_host = os.environ.get("DB_HOST")
+    _db_port = os.environ.get("DB_PORT") or "3306"
     _db_user = os.environ.get("DB_USER")
     _db_password = os.environ.get("DB_PASSWORD")
     _db_name = os.environ.get("DB_NAME")
     SQLALCHEMY_DATABASE_URI: str = (
-        f"mysql+pymysql://{quote_plus(_db_user or '')}:{quote_plus(_db_password or '')}@{_db_host}/{_db_name}"
+        f"mysql+pymysql://{quote_plus(_db_user or '')}:{quote_plus(_db_password or '')}@{_db_host}:{_db_port}/{_db_name}"
         if _db_host
         else "sqlite:///event_planner.db"
     )

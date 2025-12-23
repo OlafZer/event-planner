@@ -19,22 +19,28 @@
         set -a
         source .env
         set +a
-        mysqldump --host="${DB_HOST}" --user="${DB_USER}" --password="${DB_PASSWORD}" "${DB_NAME}" > "backups/${DB_NAME}_backup_{{ log_timestamp }}.sql"
+        export MYSQL_PWD="${DB_PASSWORD}"
+        mysqldump --host="${DB_HOST}" --user="${DB_USER}" "${DB_NAME}" > "backups/${DB_NAME}_backup_{{ log_timestamp }}.sql"
       args:
         executable: /bin/bash
       register: db_backup
       changed_when: true
+      environment:
+        MYSQL_PWD: "{{ lookup('ini', 'DB_PASSWORD type=properties file=.env') }}"
 
     - name: Drop and recreate database
       ansible.builtin.shell: |
         set -a
         source .env
         set +a
-        mysql --host="${DB_HOST}" --user="${DB_USER}" --password="${DB_PASSWORD}" -e "DROP DATABASE IF EXISTS \`${DB_NAME}\`; CREATE DATABASE \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+        export MYSQL_PWD="${DB_PASSWORD}"
+        mysql --host="${DB_HOST}" --user="${DB_USER}" -e "DROP DATABASE IF EXISTS \`${DB_NAME}\`; CREATE DATABASE \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
       args:
         executable: /bin/bash
       register: db_reset
       changed_when: true
+      environment:
+        MYSQL_PWD: "{{ lookup('ini', 'DB_PASSWORD type=properties file=.env') }}"
 
     - name: Import database schema
       ansible.builtin.shell: |
