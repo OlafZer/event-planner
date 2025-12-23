@@ -21,6 +21,7 @@ from app.forms import (
     EventCreateForm,
     GuestActionForm,
     GuestForm,
+    GuestUpdateForm,
 )
 from app.models import AdminUser, Event, Guest
 from app.utils import (
@@ -170,6 +171,7 @@ def admin_dashboard() -> Response | str:
     upload_form = CsvUploadForm()
     guest_form = GuestForm()
     action_form = GuestActionForm()
+    update_forms: dict[int, GuestUpdateForm] = {}
     upload_form.event_id.choices = [(event.id, event.name) for event in available_events if event]
 
     if current_user.is_super_admin and event_form.submit_event.data and event_form.validate_on_submit():
@@ -326,6 +328,17 @@ def admin_dashboard() -> Response | str:
     stats = {"total": 0, "pax_yes": 0, "declined": 0, "open": 0}
     if active_event:
         guests = Guest.query.filter_by(event_id=active_event.id).order_by(Guest.first_name, Guest.last_name).all()
+        update_forms = {
+            guest.id: GuestUpdateForm(
+                formdata=None,
+                data={
+                    "guest_id": guest.id,
+                    "status": guest.status,
+                    "confirmed_persons": guest.confirmed_persons,
+                },
+            )
+            for guest in guests
+        }
         stats["total"] = len(guests)
         stats["pax_yes"] = (
             db.session.query(db.func.coalesce(db.func.sum(Guest.confirmed_persons), 0))
@@ -346,6 +359,7 @@ def admin_dashboard() -> Response | str:
         active_event=active_event,
         available_events=available_events,
         action_form=action_form,
+        update_forms=update_forms,
         stats=stats,
     )
 
@@ -423,6 +437,38 @@ def send_guest_email(event_id: int, guest_id: int) -> Response:
         flash("E-Mail wurde versendet.", "success")
     else:
         flash("Mail-Versand ist nicht konfiguriert.", "warning")
+    return redirect(url_for("admin.admin_dashboard", event_id=event_id))
+
+
+@admin_bp.route("/admin/event/<int:event_id>/guest/<int:guest_id>/update", methods=["POST"])
+@login_required
+def update_guest_status(event_id: int, guest_id: int) -> Response:
+    """Update the status and confirmed persons for a guest."""
+
+    _require_event_access(event_id)
+    guest = Guest.query.filter_by(id=guest_id, event_id=event_id).first_or_404()
+    form = GuestUpdateForm()
+    if not form.validate_on_submit():
+        flash("Bitte überprüfe die Eingaben für den Gast.", "danger")
+        return redirect(url_for("admin.admin_dashboard", event_id=event_id))
+    try:
+        submitted_guest_id = int(form.guest_id.data)
+    except (TypeError, ValueError):
+        abort(400)
+    if submitted_guest_id != guest_id:
+        abort(400)
+
+    confirmed_persons = form.confirmed_persons.data
+    if confirmed_persons is None:
+        confirmed_persons = 0
+    if confirmed_persons > guest.max_persons:
+        flash("Die bestätigten Personen dürfen das maximale Kontingent nicht überschreiten.", "danger")
+        return redirect(url_for("admin.admin_dashboard", event_id=event_id))
+
+    guest.status = form.status.data
+    guest.confirmed_persons = confirmed_persons
+    db.session.commit()
+    flash("Gaststatus wurde aktualisiert.", "success")
     return redirect(url_for("admin.admin_dashboard", event_id=event_id))
 
 
