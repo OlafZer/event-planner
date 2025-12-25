@@ -20,6 +20,7 @@ ENV/
 secrets.json
 *.key
 *.pem
+.htaccess
 
 # Logs and temp files
 *.log
