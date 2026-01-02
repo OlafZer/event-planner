@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center my-4">
+    <h1 class="display-6 text-danger">Es ist ein Fehler aufgetreten.</h1>
+    <p class="lead">Bitte versuche es erneut oder kontaktiere den Administrator.</p>
+    {% if error_id %}
+    <p class="text-muted">Fehler-ID: <code>{{ error_id }}</code></p>
+    {% endif %}
+    <a class="btn btn-primary mt-3" href="{{ url_for('public.index') }}">Zur Startseite</a>
+</div>
+{% endblock %}
