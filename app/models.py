@@ -23,8 +23,10 @@ class Event(db.Model):
     event_date = db.Column(db.DateTime, nullable=False)
     invitation_text = db.Column(db.Text, nullable=False)
     background_image_url = db.Column(db.String(512), nullable=True)
+    music_requests_enabled = db.Column(db.Boolean, nullable=False, default=False)
 
     guests = db.relationship("Guest", backref="event", cascade="all, delete-orphan")
+    music_requests = db.relationship("MusicRequest", backref="event", cascade="all, delete-orphan")
 
 
 class Guest(db.Model):
@@ -54,6 +56,7 @@ class Guest(db.Model):
     )
 
     accesses = db.relationship("AccessLog", backref="guest", cascade="all, delete-orphan")
+    music_requests = db.relationship("MusicRequest", backref="guest", cascade="all, delete-orphan")
 
 
 class AccessLog(db.Model):
@@ -99,6 +102,24 @@ class AdminUser(UserMixin, db.Model):
         """Return True if the admin user has global super admin permissions."""
 
         return self.role == "super_admin"
+
+
+class MusicRequest(db.Model):
+    """Music request submitted by a guest for a specific event."""
+
+    __tablename__ = "music_requests"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    event_id = db.Column(db.BigInteger, db.ForeignKey("events.id"), nullable=False, index=True)
+    guest_id = db.Column(db.BigInteger, db.ForeignKey("guests.id"), nullable=False)
+    artist = db.Column(db.String(255), nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    spotify_track_id = db.Column(db.String(255), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+
+    def __repr__(self) -> str:  # pragma: no cover - debugging helper
+        return f"<MusicRequest guest_id={self.guest_id} {self.artist} - {self.title}>"
 
 
 def get_event_by_prefix(prefix: str) -> Optional[Event]:

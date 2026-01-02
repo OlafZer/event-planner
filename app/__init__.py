@@ -33,9 +33,13 @@ def create_app() -> Flask:
 
     from app.routes.admin import admin_bp
     from app.routes.public import public_bp
+    from app.routes.music_admin import music_admin_bp
+    from app.routes.music_public import music_public_bp
 
     app.register_blueprint(public_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(music_admin_bp)
+    app.register_blueprint(music_public_bp)
 
     @app.context_processor
     def inject_branding() -> dict[str, Any]:

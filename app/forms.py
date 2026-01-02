@@ -173,3 +173,45 @@ class GuestUpdateForm(FlaskForm):
         default=0,
     )
     submit = SubmitField("Speichern")
+
+
+# ========================================
+# Music request forms
+# ========================================
+
+
+class MusicRequestEnableForm(FlaskForm):
+    """Form for toggling music request availability per event."""
+
+    music_requests_enabled = BooleanField("Musikwünsche aktivieren")
+    submit_music = SubmitField("Speichern")
+
+
+class MusicRequestForm(FlaskForm):
+    """Form for guests to submit a music request."""
+
+    artist = StringField(
+        "Interpret/Band",
+        validators=[
+            DataRequired(message="Bitte gib den Interpreten ein."),
+            Length(max=255, message="Maximal 255 Zeichen."),
+        ],
+        render_kw={"placeholder": "z.B. Queen, Die Ärzte, Taylor Swift"},
+    )
+
+    title = StringField(
+        "Titel",
+        validators=[
+            DataRequired(message="Bitte gib den Songtitel ein."),
+            Length(max=255, message="Maximal 255 Zeichen."),
+        ],
+        render_kw={"placeholder": "z.B. Bohemian Rhapsody"},
+    )
+
+    notes = TextAreaField(
+        "Anmerkung (optional)",
+        validators=[Optional(), Length(max=500)],
+        render_kw={"placeholder": "z.B. Bitte zum Tanzen spielen!", "rows": 2},
+    )
+
+    submit = SubmitField("Musikwunsch absenden")

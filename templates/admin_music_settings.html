@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mt-3">
+    <h1>🎵 Musikwünsche - {{ event.name }}</h1>
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('admin.admin_dashboard', event_id=event.id) }}">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item active">Musikwünsche</li>
+        </ol>
+    </nav>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">Einstellungen</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="form-check mb-3">
+                    {{ form.music_requests_enabled(class="form-check-input", id="music_requests_enabled") }}
+                    {{ form.music_requests_enabled.label(class="form-check-label", for="music_requests_enabled") }}
+                    <small class="form-text text-muted d-block">
+                        Wenn aktiviert, können Gäste über ihren Einladungslink Musikwünsche eingeben.
+                    </small>
+                </div>
+                {{ form.submit_music(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+
+    {% if event.music_requests_enabled %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">Übersicht</h3>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card text-center bg-light h-100">
+                        <div class="card-body">
+                            <h2 class="display-5">{{ stats.total_requests }}</h2>
+                            <p class="mb-0">Musikwünsche gesamt</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center bg-light h-100">
+                        <div class="card-body">
+                            <h2 class="display-5">{{ stats.unique_guests }}</h2>
+                            <p class="mb-0">Gäste mit Wünschen</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center bg-success text-white h-100">
+                        <div class="card-body">
+                            <a href="{{ url_for('music_admin.export_music_requests', event_id=event.id) }}" class="btn btn-light btn-lg">
+                                📥 CSV Export
+                            </a>
+                            <p class="mb-0 mt-2"><small>Für lokale Verarbeitung</small></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">Verwaltung</h3>
+        </div>
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('music_admin.music_requests_list', event_id=event.id) }}" class="btn btn-primary btn-lg">
+                    📋 Alle Musikwünsche anzeigen
+                </a>
+                <a href="{{ url_for('music_admin.export_music_requests', event_id=event.id) }}" class="btn btn-success btn-lg">
+                    📥 Als CSV exportieren
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if stats.recent_requests %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">Neueste Musikwünsche</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Interpret</th>
+                            <th>Titel</th>
+                            <th>Gast</th>
+                            <th>Wann</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for request, guest in stats.recent_requests %}
+                        <tr>
+                            <td><strong>{{ request.artist }}</strong></td>
+                            <td>{{ request.title }}</td>
+                            <td>
+                                {{ guest.first_name }} {{ guest.last_name or '' }}
+                                <small class="text-muted d-block">ID: {{ guest.id }}</small>
+                            </td>
+                            <td>{{ request.created_at.strftime('%d.%m. %H:%M') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="alert alert-info">
+        Musikwünsche sind aktuell deaktiviert. Aktiviere sie oben, damit Gäste Wünsche eingeben können.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -40,6 +40,20 @@
         </div>
     </div>
 </div>
+{% if event.music_requests_enabled %}
+<div class="card mt-4">
+    <div class="card-body text-center">
+        <h4 class="card-title">🎵 Musikwünsche</h4>
+        <p class="card-text mb-3">Teile uns deine Musikwünsche mit!</p>
+        <a
+            href="{{ url_for('music_public.music_request_page', event_id=event.id, code=code) }}"
+            class="btn btn-primary btn-lg"
+        >
+            Musikwünsche eingeben
+        </a>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

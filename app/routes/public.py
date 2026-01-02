@@ -132,6 +132,7 @@ def invite(event_id: int, code: str) -> Response | str:
         form=form,
         invite_url=url_for("public.invite", event_id=event.id, code=code, _external=True),
         background_image_url=event.background_image_url,
+        code=code,
     )
 
 

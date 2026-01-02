@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mt-3">
+    <h1>🎵 Musikwünsche - {{ event.name }}</h1>
+    <p class="lead">Hallo {{ guest.first_name }}! Teile uns deine Musikwünsche mit.</p>
+
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">✨ Neuer Musikwunsch</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="mb-3">
+                    {{ form.artist.label(class="form-label") }}
+                    {{ form.artist(class="form-control form-control-lg") }}
+                    {% if form.artist.errors %}
+                        <div class="text-danger">{{ form.artist.errors[0] }}</div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.title.label(class="form-label") }}
+                    {{ form.title(class="form-control form-control-lg") }}
+                    {% if form.title.errors %}
+                        <div class="text-danger">{{ form.title.errors[0] }}</div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    {{ form.notes.label(class="form-label") }}
+                    {{ form.notes(class="form-control") }}
+                    <small class="form-text text-muted">
+                        z.B. "Bitte zum Tanzen spielen" oder "Für die Eröffnung"
+                    </small>
+                </div>
+                {{ form.submit(class="btn btn-primary btn-lg") }}
+            </form>
+        </div>
+    </div>
+
+    {% if guest_requests %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="mb-0">Deine Musikwünsche ({{ guest_requests|length }})</h3>
+        </div>
+        <div class="card-body">
+            <div class="list-group">
+                {% for request in guest_requests %}
+                <div class="list-group-item">
+                    <div class="row align-items-center">
+                        <div class="col-md-10">
+                            <h5 class="mb-1">
+                                <strong>{{ request.artist }}</strong> - {{ request.title }}
+                            </h5>
+                            {% if request.notes %}
+                            <p class="mb-1 text-muted">💬 {{ request.notes }}</p>
+                            {% endif %}
+                            <small class="text-muted">
+                                Eingereicht: {{ request.created_at.strftime('%d.%m.%Y %H:%M') }} Uhr
+                            </small>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <form
+                                method="POST"
+                                action="{{ url_for('music_public.delete_own_music_request', event_id=event.id, code=code, request_id=request.id) }}"
+                                class="d-inline"
+                            >
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Wirklich löschen?')">
+                                    🗑️ Löschen
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <a href="{{ url_for('public.invite', event_id=event.id, code=code) }}" class="btn btn-secondary">
+        ← Zurück zur Einladung
+    </a>
+</div>
+{% endblock %}

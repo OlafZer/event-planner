@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mt-3">
+    <h1>🎵 Alle Musikwünsche - {{ event.name }}</h1>
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('admin.admin_dashboard', event_id=event.id) }}">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('music_admin.music_settings', event_id=event.id) }}">Musikwünsche</a>
+            </li>
+            <li class="breadcrumb-item active">Alle Wünsche</li>
+        </ol>
+    </nav>
+
+    <div class="mb-3 d-flex flex-wrap gap-2">
+        <a href="{{ url_for('music_admin.export_music_requests', event_id=event.id) }}" class="btn btn-success">
+            📥 Als CSV exportieren
+        </a>
+        <a href="{{ url_for('music_admin.music_settings', event_id=event.id) }}" class="btn btn-secondary">
+            ← Zurück
+        </a>
+    </div>
+
+    {% if requests %}
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Interpret</th>
+                    <th>Titel</th>
+                    <th>Gast</th>
+                    <th>Kategorie</th>
+                    <th>Anmerkung</th>
+                    <th>Eingereicht</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for request, guest in requests %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><strong>{{ request.artist }}</strong></td>
+                    <td>{{ request.title }}</td>
+                    <td>
+                        {{ guest.first_name }} {{ guest.last_name or '' }}
+                        <br><small class="text-muted">ID: {{ guest.id }}</small>
+                    </td>
+                    <td>{{ guest.category }}</td>
+                    <td>{{ request.notes or '-' }}</td>
+                    <td>{{ request.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>
+                        <form
+                            method="POST"
+                            action="{{ url_for('music_admin.delete_music_request', event_id=event.id, request_id=request.id) }}"
+                            class="d-inline"
+                        >
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Wirklich löschen?')">
+                                🗑️ Löschen
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="alert alert-info mt-3">
+        <strong>Hinweis:</strong> Die Gast-ID ist eindeutig. Ein Gast kann für mehrere Events eingeladen sein und hat dann
+        unterschiedliche IDs. Die ID wird im CSV-Export mit ausgegeben.
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        Noch keine Musikwünsche vorhanden.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

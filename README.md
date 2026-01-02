@@ -40,3 +40,15 @@ Jeder Datensatz wird im Import-Prozess strikt mit der jeweiligen `event_id` verk
 ## Deployment-Übersicht
 
 Eine Schritt-für-Schritt-Anleitung für Strato Hosting Plus findet sich in `DEPLOYMENT.md`. Dort sind auch Hinweise zu WSGI/CGI-Pfaden enthalten.
+
+## Musikwünsche aktivieren
+
+Die Anwendung unterstützt optionale Musikwünsche pro Event. Für bestehende Datenbanken führe zuerst die Migration aus:
+
+```
+mysql -h <host> -u <user> -p <database> < db_migration_music_requests.sql
+```
+
+- Neu: Spalte `music_requests_enabled` in `events`, Tabelle `music_requests` für die Wünsche (mit Gast- und Event-IDs).
+- Admins können die Funktion im Dashboard über **🎵 Musikwünsche verwalten** pro Event ein- oder ausschalten, Wünsche einsehen oder als CSV exportieren.
+- Gäste finden bei aktivierten Events auf ihrer Einladung einen Button, um eigene Wünsche anzulegen oder zu löschen.
