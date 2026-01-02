@@ -14,7 +14,7 @@ Spaltenhinweise:
     - nachname optional
     - kategorie muss in ALLOWED_CATEGORIES liegen
     - max_persons muss eine Zahl >= 1 sein
-    - invite_code wird gehasht und als invite_code_hash gespeichert
+    - invite_code wird gehasht und als invite_code_hash gespeichert und im Klartext (groß) als invite_code_plain
     - email ist optional (Spalte Pflicht, Wert pro Zeile optional)
     - telephone optional
     - notify_admin wird als bool interpretiert (1/true/yes/ja)
@@ -32,7 +32,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from app import create_app, db
 from app.models import Event, Guest
-from app.utils import ALLOWED_CATEGORIES, hash_invite_code, is_valid_email
+from app.utils import ALLOWED_CATEGORIES, hash_invite_code, is_valid_email, normalize_invite_code
 
 
 app = create_app()
@@ -76,6 +76,7 @@ def main():
                 category = (row.get("kategorie") or "").strip()
                 max_persons_raw = (row.get("max_persons") or "").strip()
                 invite_code = (row.get("invite_code") or "").strip()
+                normalized_code = normalize_invite_code(invite_code)
                 email = (row.get("email") or "").strip() or None
                 telephone = (row.get("telephone") or "").strip() or None
                 notify_raw = (row.get("notify_admin") or "").strip().lower()
@@ -101,7 +102,7 @@ def main():
                     print(f"Ungültige E-Mail: {email}", file=sys.stderr)
                     continue
 
-                code_hash = hash_invite_code(invite_code)
+                code_hash = hash_invite_code(normalized_code)
                 if Guest.query.filter_by(event_id=event.id, invite_code_hash=code_hash).first():
                     print("Invite-Code bereits vergeben", file=sys.stderr)
                     continue
@@ -115,6 +116,7 @@ def main():
                     category=category,
                     max_persons=max_persons,
                     invite_code_hash=code_hash,
+                    invite_code_plain=normalized_code,
                     email=email,
                     telephone=telephone,
                     notify_admin=notify_admin_value,
