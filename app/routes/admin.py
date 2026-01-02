@@ -97,6 +97,17 @@ def _prepare_manual_invite_code(code: str, event: Event) -> Optional[str]:
     return f"{event.code_prefix}{normalized}"
 
 
+def _sanitize_csv_cell(value: Optional[str]) -> str:
+    """Prefix potentially dangerous CSV values to avoid formula injection."""
+
+    if value is None:
+        return ""
+    stripped = value.strip()
+    if stripped.startswith(("=", "+", "-", "@")):
+        return f"'{stripped}"
+    return stripped
+
+
 def _configure_invite_form(form: InviteForm, guest: Guest) -> None:
     """Apply guest-specific validation rules to an invite form instance."""
 
@@ -256,13 +267,13 @@ def admin_dashboard() -> Response | str:
             return redirect(url_for("admin.admin_dashboard", event_id=target_event_id))
 
         for index, row in enumerate(reader, start=2):
-            first_name = (row.get("name") or "").strip()
-            last_name = (row.get("nachname") or "").strip() or None
+            first_name = _sanitize_csv_cell(row.get("name"))
+            last_name = _sanitize_csv_cell(row.get("nachname")) or None
             category = (row.get("kategorie") or "").strip()
             max_persons_raw = (row.get("max_persons") or "").strip()
             invite_code = (row.get("invite_code") or "").strip()
-            email_value = (row.get("email") or "").strip() or None
-            telephone = (row.get("telephone") or "").strip() or None
+            email_value = _sanitize_csv_cell(row.get("email")) or None
+            telephone = _sanitize_csv_cell(row.get("telephone")) or None
             notify_raw = (row.get("notify_admin") or "").strip().lower()
 
             if not first_name:

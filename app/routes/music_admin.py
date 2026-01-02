@@ -16,6 +16,17 @@ from app.models import Event, Guest, MusicRequest
 music_admin_bp = Blueprint("music_admin", __name__, url_prefix="/admin")
 
 
+def _sanitize_csv_cell(value: str | None) -> str:
+    """Prefix potentially dangerous CSV values to avoid formula injection."""
+
+    if value is None:
+        return ""
+    stripped = value.strip()
+    if stripped.startswith(("=", "+", "-", "@")):
+        return f"'{stripped}"
+    return stripped
+
+
 def _require_event_access(event_id: int) -> None:
     """Ensure the current admin can access the given event."""
 
@@ -146,12 +157,12 @@ def export_music_requests(event_id: int) -> Response:
     for music_request, guest in requests:
         writer.writerow(
             [
-                music_request.artist,
-                music_request.title,
+                _sanitize_csv_cell(music_request.artist),
+                _sanitize_csv_cell(music_request.title),
                 guest.id,
-                f"{guest.first_name} {guest.last_name or ''}".strip(),
-                guest.category,
-                music_request.notes or "",
+                _sanitize_csv_cell(f"{guest.first_name} {guest.last_name or ''}".strip()),
+                _sanitize_csv_cell(guest.category),
+                _sanitize_csv_cell(music_request.notes),
                 music_request.created_at.strftime("%Y-%m-%d %H:%M:%S") if music_request.created_at else "",
                 music_request.spotify_track_id or "",
             ]
