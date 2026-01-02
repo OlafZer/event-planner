@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS events (
     event_date DATETIME NOT NULL,
     invitation_text TEXT NOT NULL,
     background_image_url VARCHAR(512) NULL,
+    music_requests_enabled TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -51,10 +52,40 @@ CREATE TABLE IF NOT EXISTS access_log (
     CONSTRAINT fk_access_guest FOREIGN KEY (guest_id) REFERENCES guests(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS music_requests (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    event_id BIGINT UNSIGNED NOT NULL,
+    guest_id BIGINT UNSIGNED NOT NULL,
+    artist VARCHAR(255) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    spotify_track_id VARCHAR(255) NULL,
+    notes TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_music_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    CONSTRAINT fk_music_guest FOREIGN KEY (guest_id) REFERENCES guests(id) ON DELETE CASCADE,
+    INDEX idx_music_event_guest (event_id, guest_id),
+    INDEX idx_music_created (created_at)
+);
+
 -- Migration helper for bestehende Datenbanken
 -- Führe diese Statements aus, um die neuen Spalten ohne Datenverlust hinzuzufügen:
 -- ALTER TABLE events ADD COLUMN code_prefix CHAR(2) NOT NULL UNIQUE AFTER name;
 -- ALTER TABLE events ADD COLUMN event_date DATETIME NOT NULL AFTER description;
 -- ALTER TABLE events ADD COLUMN invitation_text TEXT NOT NULL AFTER event_date;
 -- ALTER TABLE events ADD COLUMN background_image_url VARCHAR(512) NULL AFTER invitation_text;
+-- ALTER TABLE events ADD COLUMN music_requests_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER background_image_url;
 -- ALTER TABLE guests ADD COLUMN invite_code_plain CHAR(8) NULL AFTER invite_code_hash;
+-- CREATE TABLE music_requests (
+--     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+--     event_id BIGINT UNSIGNED NOT NULL,
+--     guest_id BIGINT UNSIGNED NOT NULL,
+--     artist VARCHAR(255) NOT NULL,
+--     title VARCHAR(255) NOT NULL,
+--     spotify_track_id VARCHAR(255) NULL,
+--     notes TEXT NULL,
+--     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+--     CONSTRAINT fk_music_event FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+--     CONSTRAINT fk_music_guest FOREIGN KEY (guest_id) REFERENCES guests(id) ON DELETE CASCADE,
+--     INDEX idx_music_event_guest (event_id, guest_id),
+--     INDEX idx_music_created (created_at)
+-- );

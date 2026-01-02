@@ -88,6 +88,11 @@
       <h4 class="mb-0">{{ active_event.name }}</h4>
       <div class="text-muted">Prefix: {{ active_event.code_prefix }}</div>
   </div>
+  <div class="d-flex flex-wrap gap-2 mb-4">
+      <a href="{{ url_for('music_admin.music_settings', event_id=active_event.id) }}" class="btn btn-info">
+          🎵 Musikwünsche verwalten
+      </a>
+  </div>
   <div class="row row-cols-1 row-cols-md-5 g-3 mb-4">
       <div class="col">
           <div class="card text-bg-primary">

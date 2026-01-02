@@ -43,6 +43,12 @@ Diese Anleitung beschreibt, wie du als Admin ein Event anlegst, Gäste importier
 8. **Demo-Daten**
    - Für lokale Tests: `python scripts/create_demo_data.py` (vorher `.env` und DB verbinden). Es werden Events „Sommerfest“ und „Weihnachtsfeier“ plus 15 Gäste je Event angelegt.
 
+9. **Musikwünsche sammeln**
+   - Führe für bestehende Datenbanken das Skript `db_migration_music_requests.sql` aus (siehe README).
+   - Öffne im Dashboard das gewünschte Event und klicke auf **🎵 Musikwünsche verwalten**.
+   - Aktiviere die Funktion per Schalter. Gäste sehen dann auf ihrer Einladung einen Button „Musikwünsche eingeben“.
+   - Auf der Admin-Seite kannst du Wünsche einsehen, löschen oder als CSV exportieren (inkl. eindeutiger Gast-ID).
+
 ## Hinweise zu Bildern
 - **Hintergrund**: Verwende lizenzfreie Fotos, ideal im Querformat. Die Datei sollte eine öffentliche URL sein (HTTPS), damit Browser sie ohne Auth laden können.
 - **Logo**: Nutze PNG oder SVG mit transparentem Hintergrund. Halte die Dateigröße klein (<200 kB), damit Seiten schnell laden.
