@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 from io import BytesIO, StringIO
 
-from flask import Blueprint, Response, abort, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 
 from app import db
@@ -32,6 +32,13 @@ def music_settings(event_id: int) -> Response | str:
 
     _require_event_access(event_id)
     event = Event.query.get_or_404(event_id)
+    if not current_app.config.get("MUSIC_REQUESTS_AVAILABLE", True):
+        flash(
+            current_app.config.get("MUSIC_REQUESTS_ERROR")
+            or "Musikwünsche sind derzeit nicht verfügbar. Bitte Migration prüfen.",
+            "danger",
+        )
+        return redirect(url_for("admin.admin_dashboard", event_id=event_id))
     form = MusicRequestEnableForm()
 
     if form.validate_on_submit():
@@ -78,6 +85,13 @@ def music_requests_list(event_id: int) -> Response | str:
 
     _require_event_access(event_id)
     event = Event.query.get_or_404(event_id)
+    if not current_app.config.get("MUSIC_REQUESTS_AVAILABLE", True):
+        flash(
+            current_app.config.get("MUSIC_REQUESTS_ERROR")
+            or "Musikwünsche sind derzeit nicht verfügbar. Bitte Migration prüfen.",
+            "danger",
+        )
+        return redirect(url_for("admin.admin_dashboard", event_id=event_id))
     if not event.music_requests_enabled:
         flash("Musikwünsche sind für dieses Event nicht aktiviert.", "warning")
         return redirect(url_for("admin.admin_dashboard", event_id=event_id))
@@ -100,6 +114,13 @@ def export_music_requests(event_id: int) -> Response:
 
     _require_event_access(event_id)
     event = Event.query.get_or_404(event_id)
+    if not current_app.config.get("MUSIC_REQUESTS_AVAILABLE", True):
+        flash(
+            current_app.config.get("MUSIC_REQUESTS_ERROR")
+            or "Musikwünsche sind derzeit nicht verfügbar. Bitte Migration prüfen.",
+            "danger",
+        )
+        return redirect(url_for("admin.admin_dashboard", event_id=event_id))
     requests = (
         db.session.query(MusicRequest, Guest)
         .join(Guest, MusicRequest.guest_id == Guest.id)
@@ -147,6 +168,13 @@ def delete_music_request(event_id: int, request_id: int) -> Response:
     """Delete a music request as admin."""
 
     _require_event_access(event_id)
+    if not current_app.config.get("MUSIC_REQUESTS_AVAILABLE", True):
+        flash(
+            current_app.config.get("MUSIC_REQUESTS_ERROR")
+            or "Musikwünsche sind derzeit nicht verfügbar. Bitte Migration prüfen.",
+            "danger",
+        )
+        return redirect(url_for("admin.admin_dashboard", event_id=event_id))
     music_request = MusicRequest.query.filter_by(id=request_id, event_id=event_id).first_or_404()
     artist = music_request.artist
     title = music_request.title

@@ -68,12 +68,20 @@ def _ensure_music_schema(app: Flask) -> None:
 
     from app.models import MusicRequest
 
+    def _mark_unavailable(message: str) -> None:
+        app.config["MUSIC_REQUESTS_AVAILABLE"] = False
+        app.config["MUSIC_REQUESTS_ERROR"] = message
+
+    app.config["MUSIC_REQUESTS_AVAILABLE"] = True
+    app.config["MUSIC_REQUESTS_ERROR"] = None
+
     with app.app_context():
         try:
             inspector = inspect(db.engine)
             event_columns = {column["name"] for column in inspector.get_columns("events")}
         except SQLAlchemyError:
             app.logger.exception("Konnte Events-Schema nicht prüfen")
+            _mark_unavailable("Datenbankverbindung fehlgeschlagen – bitte Strato-Datenbank prüfen.")
             return
 
         if "music_requests_enabled" not in event_columns:
@@ -86,12 +94,18 @@ def _ensure_music_schema(app: Flask) -> None:
             except SQLAlchemyError:
                 db.session.rollback()
                 app.logger.exception("Spalte music_requests_enabled konnte nicht ergänzt werden")
+                _mark_unavailable(
+                    "Musikwünsche sind nicht verfügbar, weil die Spalte music_requests_enabled fehlt. "
+                    "Bitte Migration db_migration_music_requests.sql mit ALTER-Rechten ausführen."
+                )
+                return
 
         try:
             inspector = inspect(db.engine)
             has_music_table = inspector.has_table(MusicRequest.__tablename__)
         except SQLAlchemyError:
             app.logger.exception("Konnte music_requests-Tabelle nicht prüfen")
+            _mark_unavailable("Datenbankverbindung fehlgeschlagen – bitte Strato-Datenbank prüfen.")
             return
 
         if not has_music_table:
@@ -100,3 +114,8 @@ def _ensure_music_schema(app: Flask) -> None:
                 app.logger.info("Tabelle music_requests wurde automatisch angelegt.")
             except SQLAlchemyError:
                 app.logger.exception("Tabelle music_requests konnte nicht angelegt werden")
+                _mark_unavailable(
+                    "Musikwünsche sind deaktiviert, weil die Tabelle music_requests fehlt. "
+                    "Bitte Migration db_migration_music_requests.sql mit CREATE-Rechten ausführen."
+                )
+                return

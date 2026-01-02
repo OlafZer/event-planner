@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from flask import Blueprint, Response, flash, redirect, render_template, url_for
+from flask import Blueprint, Response, current_app, flash, redirect, render_template, url_for
 
 from app import db
 from app.forms import MusicRequestForm
@@ -38,6 +38,14 @@ def _get_guest_from_code(event: Event, code: str) -> Guest | None:
     return Guest.query.filter_by(event_id=event.id, invite_code_hash=invite_hash).first()
 
 
+def _music_unavailable_redirect(event_id: int, code: str) -> Response:
+    """Flash a helpful message when the music feature cannot be used."""
+
+    error = current_app.config.get("MUSIC_REQUESTS_ERROR") or "Musikwünsche sind aktuell nicht verfügbar."
+    flash(error, "danger")
+    return redirect(url_for("public.invite", event_id=event_id, code=code))
+
+
 @music_public_bp.route("/event/<int:event_id>/invite/<code>/music", methods=["GET", "POST"])
 def music_request_page(event_id: int, code: str) -> Response | str:
     """Allow guests to submit and manage their music requests."""
@@ -51,6 +59,9 @@ def music_request_page(event_id: int, code: str) -> Response | str:
     if not event.music_requests_enabled:
         flash("Musikwünsche sind für dieses Event nicht verfügbar.", "info")
         return redirect(url_for("public.invite", event_id=event_id, code=code))
+
+    if not current_app.config.get("MUSIC_REQUESTS_AVAILABLE", True):
+        return _music_unavailable_redirect(event_id, code)
 
     form = MusicRequestForm()
     if form.validate_on_submit():
@@ -92,6 +103,9 @@ def delete_own_music_request(event_id: int, code: str, request_id: int) -> Respo
     if not guest:
         flash("Ungültiger Zugangscode.", "danger")
         return redirect(url_for("public.index"))
+
+    if not current_app.config.get("MUSIC_REQUESTS_AVAILABLE", True):
+        return _music_unavailable_redirect(event_id, code)
 
     music_request = MusicRequest.query.filter_by(id=request_id, event_id=event.id, guest_id=guest.id).first_or_404()
     artist = music_request.artist
