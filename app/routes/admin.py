@@ -174,25 +174,30 @@ def admin_dashboard() -> Response | str:
     update_forms: dict[int, GuestUpdateForm] = {}
     upload_form.event_id.choices = [(event.id, event.name) for event in available_events if event]
 
-    if current_user.is_super_admin and event_form.submit_event.data and event_form.validate_on_submit():
-        existing_event = Event.query.filter(
-            (Event.name == event_form.name.data) | (Event.code_prefix == event_form.code_prefix.data.upper())
-        ).first()
-        if existing_event:
-            flash("Event-Name oder Prefix ist bereits vergeben.", "danger")
-            return redirect(url_for("admin.admin_dashboard", event_id=existing_event.id))
-        new_event = Event(
-            name=event_form.name.data,
-            code_prefix=event_form.code_prefix.data.upper(),
-            description=event_form.description.data,
-            event_date=event_form.event_date.data,
-            invitation_text=event_form.invitation_text.data,
-            background_image_url=event_form.background_image_url.data or None,
-        )
-        db.session.add(new_event)
-        db.session.commit()
-        flash("Event erfolgreich angelegt", "success")
-        return redirect(url_for("admin.admin_dashboard", event_id=new_event.id))
+    if current_user.is_super_admin and event_form.submit_event.data:
+        if event_form.validate_on_submit():
+            existing_event = Event.query.filter(
+                (Event.name == event_form.name.data) | (Event.code_prefix == event_form.code_prefix.data.upper())
+            ).first()
+            if existing_event:
+                flash("Event-Name oder Prefix ist bereits vergeben.", "danger")
+                return redirect(url_for("admin.admin_dashboard", event_id=existing_event.id))
+            new_event = Event(
+                name=event_form.name.data,
+                code_prefix=event_form.code_prefix.data.upper(),
+                description=event_form.description.data,
+                event_date=event_form.event_date.data,
+                invitation_text=event_form.invitation_text.data,
+                background_image_url=event_form.background_image_url.data or None,
+            )
+            db.session.add(new_event)
+            db.session.commit()
+            flash("Event erfolgreich angelegt", "success")
+            return redirect(url_for("admin.admin_dashboard", event_id=new_event.id))
+        for field_name, messages in event_form.errors.items():
+            label = getattr(event_form, field_name).label.text
+            for message in messages:
+                flash(f"{label}: {message}", "danger")
 
     if upload_form.submit.data and upload_form.validate_on_submit():
         target_event_id = upload_form.event_id.data

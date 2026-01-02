@@ -10,29 +10,47 @@
             {{ event_form.hidden_tag() }}
             <div class="mb-3">
                 {{ event_form.name.label(class_='form-label') }}
-                {{ event_form.name(class_='form-control') }}
+                {{ event_form.name(class_='form-control' + (' is-invalid' if event_form.name.errors else '')) }}
+                {% for error in event_form.name.errors %}
+                <div class="invalid-feedback">{{ error }}</div>
+                {% endfor %}
             </div>
             <div class="mb-3">
                 {{ event_form.code_prefix.label(class_='form-label') }}
-                {{ event_form.code_prefix(class_='form-control') }}
+                {{ event_form.code_prefix(class_='form-control' + (' is-invalid' if event_form.code_prefix.errors else '')) }}
                 <div class="form-text">Zweibuchstabiger Prefix für Einladungscodes, z. B. "SF".</div>
+                {% for error in event_form.code_prefix.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
             </div>
             <div class="mb-3">
                 {{ event_form.description.label(class_='form-label') }}
-                {{ event_form.description(class_='form-control') }}
+                {{ event_form.description(class_='form-control' + (' is-invalid' if event_form.description.errors else '')) }}
+                {% for error in event_form.description.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
             </div>
             <div class="mb-3">
                 {{ event_form.event_date.label(class_='form-label') }}
-                {{ event_form.event_date(class_='form-control') }}
+                {{ event_form.event_date(class_='form-control' + (' is-invalid' if event_form.event_date.errors else '')) }}
+                {% for error in event_form.event_date.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
             </div>
             <div class="mb-3">
                 {{ event_form.invitation_text.label(class_='form-label') }}
-                {{ event_form.invitation_text(class_='form-control', rows='4') }}
+                {{ event_form.invitation_text(class_='form-control' + (' is-invalid' if event_form.invitation_text.errors else ''), rows='4') }}
+                {% for error in event_form.invitation_text.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
             </div>
             <div class="mb-3">
                 {{ event_form.background_image_url.label(class_='form-label') }}
-                {{ event_form.background_image_url(class_='form-control') }}
+                {{ event_form.background_image_url(class_='form-control' + (' is-invalid' if event_form.background_image_url.errors else '')) }}
                 <div class="form-text">Optionales Hintergrundbild, z. B. ein Unsplash-Link.</div>
+                {% for error in event_form.background_image_url.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
             </div>
             {{ event_form.submit_event(class_='btn btn-primary') }}
         </form>
