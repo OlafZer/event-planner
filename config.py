@@ -17,6 +17,9 @@ class BaseConfig:
 
     SECRET_KEY: str = os.environ.get("FLASK_SECRET_KEY", "dev-secret-change-me")
     SECURITY_PASSWORD_SALT: str = os.environ.get("SECURITY_PASSWORD_SALT", "")
+    SESSION_COOKIE_SECURE: bool = True
+    SESSION_COOKIE_HTTPONLY: bool = True
+    SESSION_COOKIE_SAMESITE: str = "Lax"
     _db_host = os.environ.get("DB_HOST")
     _db_port = os.environ.get("DB_PORT") or "3306"
     _db_user = os.environ.get("DB_USER")

@@ -9,7 +9,7 @@ from typing import Optional
 from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, send_file, url_for
 from wtforms.validators import NumberRange, Optional as OptionalValidator
 
-from app import db
+from app import db, limiter
 from app.forms import AccessCodeForm, InviteForm
 from app.models import AccessLog, AdminUser, Event, Guest
 from app.utils import (
@@ -48,6 +48,7 @@ def _get_guest_by_code(event: Event, code: str) -> Guest | None:
 
 
 @public_bp.route("/", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
 def index() -> Response | str:
     """Landing page asking guests for their invite code."""
 
@@ -68,6 +69,7 @@ def index() -> Response | str:
 
 
 @public_bp.route("/event/<int:event_id>/invite/<code>", methods=["GET", "POST"])
+@limiter.limit("30 per hour")
 def invite(event_id: int, code: str) -> Response | str:
     """Render the invite response form for a guest."""
 
