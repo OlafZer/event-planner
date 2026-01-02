@@ -141,7 +141,7 @@ def export_music_requests(event_id: int) -> Response:
     )
 
     output = StringIO()
-    writer = csv.writer(output)
+    writer = csv.writer(output, quoting=csv.QUOTE_ALL)
     writer.writerow(
         [
             "Interpret",
