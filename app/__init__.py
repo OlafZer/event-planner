@@ -13,6 +13,7 @@ from flask import Flask, render_template
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import CSRFProtect
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import HTTPException
@@ -21,6 +22,7 @@ from config import get_config
 
 
 db = SQLAlchemy()
+csrf = CSRFProtect()
 login_manager = LoginManager()
 mail = Mail()
 
@@ -35,6 +37,7 @@ def create_app() -> Flask:
     _configure_logging(app)
 
     db.init_app(app)
+    csrf.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
     login_manager.login_view = "admin.admin_login"
