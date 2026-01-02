@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import logging
+import os
+import secrets
 from pathlib import Path
 from typing import Any
+from logging.handlers import RotatingFileHandler
 
-from flask import Flask
+from flask import Flask, render_template
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.exceptions import HTTPException
 
 from config import get_config
 
@@ -27,6 +32,7 @@ def create_app() -> Flask:
     template_dir = base_dir / "templates"
     app = Flask(__name__, template_folder=str(template_dir))
     app.config.from_object(get_config())
+    _configure_logging(app)
 
     db.init_app(app)
     login_manager.init_app(app)
@@ -44,6 +50,7 @@ def create_app() -> Flask:
     app.register_blueprint(music_public_bp)
 
     _ensure_music_schema(app)
+    _register_error_handlers(app)
 
     @app.context_processor
     def inject_branding() -> dict[str, Any]:
@@ -100,6 +107,7 @@ def _ensure_music_schema(app: Flask) -> None:
                 )
                 return
 
+
         try:
             inspector = inspect(db.engine)
             has_music_table = inspector.has_table(MusicRequest.__tablename__)
@@ -119,3 +127,36 @@ def _ensure_music_schema(app: Flask) -> None:
                     "Bitte Migration db_migration_music_requests.sql mit CREATE-Rechten ausführen."
                 )
                 return
+
+
+def _configure_logging(app: Flask) -> None:
+    """Configure rotating file logging so CGI deployments capture tracebacks."""
+
+    log_level_name = os.environ.get("APP_LOG_LEVEL", "INFO").upper()
+    log_level = getattr(logging, log_level_name, logging.INFO)
+    app.logger.setLevel(log_level)
+
+    log_file = os.environ.get("APP_LOG_FILE") or os.environ.get("APP_LOG_PATH")
+    default_log_path = Path(app.root_path).parent / "logs" / "flask-errors.log"
+    log_path = Path(log_file) if log_file else default_log_path
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    has_rotating_handler = any(isinstance(handler, RotatingFileHandler) for handler in app.logger.handlers)
+    if not has_rotating_handler:
+        handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=3)
+        handler.setLevel(log_level)
+        handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+        app.logger.addHandler(handler)
+
+
+def _register_error_handlers(app: Flask) -> None:
+    """Add a catch-all error handler that logs a correlation ID."""
+
+    @app.errorhandler(Exception)
+    def _handle_exception(error: Exception):  # type: ignore[override]
+        if isinstance(error, HTTPException):
+            return error
+
+        error_id = secrets.token_hex(8)
+        logging.getLogger(__name__).exception("Unhandled exception [%s]", error_id)
+        return render_template("error.html", error_id=error_id), 500
