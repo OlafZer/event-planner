@@ -4,14 +4,12 @@
     <div class="col-12 col-lg-6">
         <div class="card h-100">
             <div class="card-body">
-                <h2 class="card-title">Einladung für {{ guest.first_name }}{% if guest.last_name %} {{ guest.last_name }}{% endif %}</h2>
+                <h2 class="card-title">Einladung für {{ guest.first_name }}</h2>
                 <p class="card-text mb-1">Event: <strong>{{ event.name }}</strong></p>
                 <p class="card-text">Wann: {{ event.event_date.strftime('%d.%m.%Y %H:%M Uhr') }}</p>
-                <p class="card-text">Maximal eingeladene Personen: {{ guest.max_persons }}</p>
                 <div class="alert alert-info" id="countdown" data-event-date="{{ event.event_date.isoformat() }}">
                     Lade Countdown...
                 </div>
-                <h5>Dein Einladungstext</h5>
                 <p>{{ event.invitation_text }}</p>
                 <a class="btn btn-outline-secondary" href="{{ url_for('public.invite_qr', event_id=event.id, code=guest.invite_code_hash) }}" target="_blank">QR-Code anzeigen</a>
             </div>
