@@ -9,6 +9,8 @@ from flask import Flask
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from config import get_config
 
@@ -41,6 +43,8 @@ def create_app() -> Flask:
     app.register_blueprint(music_admin_bp)
     app.register_blueprint(music_public_bp)
 
+    _ensure_music_schema(app)
+
     @app.context_processor
     def inject_branding() -> dict[str, Any]:
         """Inject global template variables such as the branding logo URL."""
@@ -57,3 +61,42 @@ def create_app() -> Flask:
         return response
 
     return app
+
+
+def _ensure_music_schema(app: Flask) -> None:
+    """Create missing music request schema pieces to avoid runtime errors."""
+
+    from app.models import MusicRequest
+
+    with app.app_context():
+        try:
+            inspector = inspect(db.engine)
+            event_columns = {column["name"] for column in inspector.get_columns("events")}
+        except SQLAlchemyError:
+            app.logger.exception("Konnte Events-Schema nicht prüfen")
+            return
+
+        if "music_requests_enabled" not in event_columns:
+            try:
+                db.session.execute(
+                    text("ALTER TABLE events ADD COLUMN music_requests_enabled BOOLEAN NOT NULL DEFAULT 0")
+                )
+                db.session.commit()
+                app.logger.info("Spalte music_requests_enabled wurde ergänzt.")
+            except SQLAlchemyError:
+                db.session.rollback()
+                app.logger.exception("Spalte music_requests_enabled konnte nicht ergänzt werden")
+
+        try:
+            inspector = inspect(db.engine)
+            has_music_table = inspector.has_table(MusicRequest.__tablename__)
+        except SQLAlchemyError:
+            app.logger.exception("Konnte music_requests-Tabelle nicht prüfen")
+            return
+
+        if not has_music_table:
+            try:
+                MusicRequest.__table__.create(bind=db.engine)
+                app.logger.info("Tabelle music_requests wurde automatisch angelegt.")
+            except SQLAlchemyError:
+                app.logger.exception("Tabelle music_requests konnte nicht angelegt werden")
