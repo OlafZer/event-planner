@@ -39,6 +39,7 @@ class Guest(db.Model):
     category = db.Column(db.String(50), nullable=False)
     max_persons = db.Column(db.Integer, nullable=False, default=1)
     invite_code_hash = db.Column(db.String(64), nullable=False, unique=True)
+    invite_code_plain = db.Column(db.String(8), nullable=True)
     email = db.Column(db.String(255), nullable=True)
     telephone = db.Column(db.String(50), nullable=True)
     status = db.Column(db.String(20), nullable=False, default="save_the_date")

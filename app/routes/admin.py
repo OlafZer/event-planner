@@ -12,6 +12,7 @@ import pyotp
 from flask import Blueprint, Response, abort, flash, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import generate_password_hash
+from wtforms.validators import NumberRange, Optional as OptionalValidator
 
 from app import db, login_manager
 from app.forms import (
@@ -21,13 +22,14 @@ from app.forms import (
     EventCreateForm,
     GuestActionForm,
     GuestForm,
-    GuestUpdateForm,
+    InviteForm,
 )
 from app.models import AdminUser, Event, Guest
 from app.utils import (
     ALLOWED_CATEGORIES,
     INVITE_CODE_PATTERN,
     build_invite_pdf,
+    generate_qr_png,
     hash_invite_code,
     is_valid_email,
     normalize_invite_code,
@@ -93,6 +95,15 @@ def _prepare_manual_invite_code(code: str, event: Event) -> Optional[str]:
     if not re.fullmatch(r"^[A-Z0-9]{6}$", normalized):
         return None
     return f"{event.code_prefix}{normalized}"
+
+
+def _configure_invite_form(form: InviteForm, guest: Guest) -> None:
+    """Apply guest-specific validation rules to an invite form instance."""
+
+    form.confirmed_persons.validators = [
+        OptionalValidator(),
+        NumberRange(min=0, max=guest.max_persons, message="Bitte innerhalb der Einladung bleiben."),
+    ]
 
 
 @admin_bp.route("/admin/login", methods=["GET", "POST"])
@@ -171,7 +182,6 @@ def admin_dashboard() -> Response | str:
     upload_form = CsvUploadForm()
     guest_form = GuestForm()
     action_form = GuestActionForm()
-    update_forms: dict[int, GuestUpdateForm] = {}
     upload_form.event_id.choices = [(event.id, event.name) for event in available_events if event]
 
     if current_user.is_super_admin and event_form.submit_event.data:
@@ -295,6 +305,7 @@ def admin_dashboard() -> Response | str:
                     category=category,
                     max_persons=max_persons,
                     invite_code_hash=code_hash,
+                    invite_code_plain=normalized_code,
                     email=email_value,
                     telephone=telephone,
                     notify_admin=notify_admin_value,
@@ -332,6 +343,7 @@ def admin_dashboard() -> Response | str:
                     category=guest_form.category.data,
                     max_persons=guest_form.max_persons.data,
                     invite_code_hash=code_hash,
+                    invite_code_plain=normalized_code,
                     email=guest_form.email.data or None,
                     telephone=guest_form.telephone.data or None,
                     notify_admin=guest_form.notify_admin.data,
@@ -342,21 +354,26 @@ def admin_dashboard() -> Response | str:
                 return redirect(url_for("admin.admin_dashboard", event_id=active_event.id))
 
     guests: Iterable[Guest] = []
-    stats = {"total": 0, "pax_yes": 0, "declined": 0, "open": 0}
+    invite_forms: dict[int, InviteForm] = {}
+    stats = {"invitations": 0, "guests_total": 0, "pax_yes": 0, "declined": 0, "open": 0}
     if active_event:
         guests = Guest.query.filter_by(event_id=active_event.id).order_by(Guest.first_name, Guest.last_name).all()
-        update_forms = {
-            guest.id: GuestUpdateForm(
+        invite_forms = {
+            guest.id: InviteForm(
                 formdata=None,
                 data={
-                    "guest_id": guest.id,
                     "status": guest.status,
                     "confirmed_persons": guest.confirmed_persons,
+                    "notes": guest.notes or "",
                 },
             )
             for guest in guests
         }
-        stats["total"] = len(guests)
+        for guest in guests:
+            _configure_invite_form(invite_forms[guest.id], guest)
+
+        stats["invitations"] = len(guests)
+        stats["guests_total"] = sum(guest.max_persons for guest in guests)
         stats["pax_yes"] = (
             db.session.query(db.func.coalesce(db.func.sum(Guest.confirmed_persons), 0))
             .filter_by(event_id=active_event.id, status="zusage")
@@ -376,7 +393,7 @@ def admin_dashboard() -> Response | str:
         active_event=active_event,
         available_events=available_events,
         action_form=action_form,
-        update_forms=update_forms,
+        invite_forms=invite_forms,
         stats=stats,
     )
 
@@ -464,39 +481,40 @@ def update_guest_status(event_id: int, guest_id: int) -> Response:
 
     _require_event_access(event_id)
     guest = Guest.query.filter_by(id=guest_id, event_id=event_id).first_or_404()
-    form = GuestUpdateForm()
+    form = InviteForm()
+    _configure_invite_form(form, guest)
     if not form.validate_on_submit():
         flash("Bitte überprüfe die Eingaben für den Gast.", "danger")
         return redirect(url_for("admin.admin_dashboard", event_id=event_id))
-    try:
-        submitted_guest_id = int(form.guest_id.data)
-    except (TypeError, ValueError):
-        abort(400)
-    if submitted_guest_id != guest_id:
-        abort(400)
 
-    confirmed_persons = form.confirmed_persons.data
-    if confirmed_persons is None:
-        confirmed_persons = 0
-    if confirmed_persons > guest.max_persons:
-        flash("Die bestätigten Personen dürfen das maximale Kontingent nicht überschreiten.", "danger")
-        return redirect(url_for("admin.admin_dashboard", event_id=event_id))
+    status_value = form.status.data
+    confirmed_persons = form.confirmed_persons.data or 0
+    confirmed_persons = min(confirmed_persons, guest.max_persons) if status_value == "zusage" else 0
 
-    guest.status = form.status.data
+    guest.status = status_value
     guest.confirmed_persons = confirmed_persons
+    guest.notes = form.notes.data or None
     db.session.commit()
     flash("Gaststatus wurde aktualisiert.", "success")
     return redirect(url_for("admin.admin_dashboard", event_id=event_id))
 
 
-@admin_bp.route("/admin/event/<int:event_id>/guest/<int:guest_id>/pdf")
+@admin_bp.route("/admin/event/<int:event_id>/guest/<int:guest_id>/qr")
 @login_required
-def download_guest_pdf(event_id: int, guest_id: int) -> Response:
-    """Return a PDF invitation for the guest."""
+def guest_qr_code(event_id: int, guest_id: int) -> Response:
+    """Return a QR code image for the guest invite link."""
 
     _require_event_access(event_id)
     guest = Guest.query.filter_by(id=guest_id, event_id=event_id).first_or_404()
     invite_url = url_for("public.invite", event_id=event_id, code=guest.invite_code_hash, _external=True)
-    pdf_bytes = build_invite_pdf(guest, guest.event, invite_url)
-    filename = f"Einladung_{guest.first_name}.pdf"
-    return send_file(BytesIO(pdf_bytes), mimetype="application/pdf", as_attachment=True, download_name=filename)
+    qr_buffer = generate_qr_png(invite_url)
+    filename = f"QR_{guest.first_name}.png"
+    return send_file(qr_buffer, mimetype="image/png", download_name=filename)
+
+
+@admin_bp.route("/admin/event/<int:event_id>/guest/<int:guest_id>/pdf")
+@login_required
+def download_guest_pdf(event_id: int, guest_id: int) -> Response:
+    """Backward-compatible alias that now returns the QR code instead of a PDF."""
+
+    return redirect(url_for("admin.guest_qr_code", event_id=event_id, guest_id=guest_id))
