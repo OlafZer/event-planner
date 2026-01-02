@@ -14,7 +14,7 @@ Spaltenhinweise:
     - nachname optional
     - kategorie muss in ALLOWED_CATEGORIES liegen
     - max_persons muss eine Zahl >= 1 sein
-    - invite_code wird gehasht und als invite_code_hash gespeichert und im Klartext (groß) als invite_code_plain
+    - invite_code wird gehasht und als invite_code_hash gespeichert
     - email ist optional (Spalte Pflicht, Wert pro Zeile optional)
     - telephone optional
     - notify_admin wird als bool interpretiert (1/true/yes/ja)
@@ -116,7 +116,6 @@ def main():
                     category=category,
                     max_persons=max_persons,
                     invite_code_hash=code_hash,
-                    invite_code_plain=normalized_code,
                     email=email,
                     telephone=telephone,
                     notify_admin=notify_admin_value,

@@ -93,7 +93,6 @@ def create_demo_guests(event: Event, count: int) -> list[tuple[str, str, str]]:
             category=random.choice(ALLOWED_CATEGORIES),
             max_persons=random.randint(1, 4),
             invite_code_hash=hash_invite_code(invite_code),
-            invite_code_plain=invite_code,
             email=faker.email(),
             telephone=faker.phone_number(),
             status=random.choice(status_choices),
