@@ -11,12 +11,17 @@ from werkzeug.security import check_password_hash
 from app import db
 
 
+# Reusable primary key type that maps to INTEGER on SQLite for proper autoincrement behavior
+BIGINT_AUTOINCREMENT = db.BigInteger().with_variant(db.Integer, "sqlite")
+
+
 class Event(db.Model):
     """Event model describing a single invitation event."""
 
     __tablename__ = "events"
+    __table_args__ = {"sqlite_autoincrement": True}
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(BIGINT_AUTOINCREMENT, primary_key=True)
     name = db.Column(db.String(150), nullable=False, unique=True)
     code_prefix = db.Column(db.String(2), nullable=False, unique=True)
     description = db.Column(db.Text, nullable=True)
@@ -33,8 +38,9 @@ class Guest(db.Model):
     """Guest model storing invitees and their status."""
 
     __tablename__ = "guests"
+    __table_args__ = {"sqlite_autoincrement": True}
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(BIGINT_AUTOINCREMENT, primary_key=True)
     event_id = db.Column(db.BigInteger, db.ForeignKey("events.id"), nullable=False, index=True)
     first_name = db.Column(db.String(150), nullable=False)
     last_name = db.Column(db.String(150), nullable=True)
@@ -63,8 +69,9 @@ class AccessLog(db.Model):
     """Access log entries for guest invite form visits."""
 
     __tablename__ = "access_log"
+    __table_args__ = {"sqlite_autoincrement": True}
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(BIGINT_AUTOINCREMENT, primary_key=True)
     event_id = db.Column(db.BigInteger, db.ForeignKey("events.id"), nullable=False, index=True)
     guest_id = db.Column(db.BigInteger, db.ForeignKey("guests.id"), nullable=False)
     accessed_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
@@ -108,8 +115,9 @@ class MusicRequest(db.Model):
     """Music request submitted by a guest for a specific event."""
 
     __tablename__ = "music_requests"
+    __table_args__ = {"sqlite_autoincrement": True}
 
-    id = db.Column(db.BigInteger, primary_key=True)
+    id = db.Column(BIGINT_AUTOINCREMENT, primary_key=True)
     event_id = db.Column(db.BigInteger, db.ForeignKey("events.id"), nullable=False, index=True)
     guest_id = db.Column(db.BigInteger, db.ForeignKey("guests.id"), nullable=False)
     artist = db.Column(db.String(255), nullable=False)
