@@ -214,7 +214,6 @@
           <tr>
               <th>Vorname</th>
               <th>Nachname</th>
-              <th>Einladungscode</th>
               <th>Kategorie</th>
               <th>Max Personen</th>
               <th>Pers. (Bestätigt)</th>
@@ -231,7 +230,6 @@
           <tr>
               <td>{{ guest.first_name }}</td>
               <td>{{ guest.last_name or '' }}</td>
-              <td>{{ guest.invite_code_plain or '—' }}</td>
               <td>{{ guest.category }}</td>
               <td>{{ guest.max_persons }}</td>
               <td>{{ guest.confirmed_persons }}</td>

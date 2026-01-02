@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS guests (
     category VARCHAR(50) NOT NULL,
     max_persons INT NOT NULL DEFAULT 1,
     invite_code_hash CHAR(64) NOT NULL UNIQUE,
-    invite_code_plain CHAR(8) NULL,
     email VARCHAR(255) NULL,
     telephone VARCHAR(50) NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'save_the_date',
@@ -74,7 +73,7 @@ CREATE TABLE IF NOT EXISTS music_requests (
 -- ALTER TABLE events ADD COLUMN invitation_text TEXT NOT NULL AFTER event_date;
 -- ALTER TABLE events ADD COLUMN background_image_url VARCHAR(512) NULL AFTER invitation_text;
 -- ALTER TABLE events ADD COLUMN music_requests_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER background_image_url;
--- ALTER TABLE guests ADD COLUMN invite_code_plain CHAR(8) NULL AFTER invite_code_hash;
+-- ALTER TABLE guests DROP COLUMN IF EXISTS invite_code_plain;
 -- CREATE TABLE music_requests (
 --     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 --     event_id BIGINT UNSIGNED NOT NULL,

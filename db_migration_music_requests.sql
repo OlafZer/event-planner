@@ -18,3 +18,6 @@ CREATE TABLE IF NOT EXISTS music_requests (
     INDEX idx_music_event_guest (event_id, guest_id),
     INDEX idx_music_created (created_at)
 );
+
+-- Remove legacy plaintext invite codes if they were added previously.
+ALTER TABLE guests DROP COLUMN IF EXISTS invite_code_plain;
