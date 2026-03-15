@@ -3,25 +3,33 @@
 
 Erstellt Einladungs-PDFs aus einer Excel-Gästeliste.
 Jede Einladung besteht aus zwei Seiten:
-  Seite 1 – optionales Cover-Bild (JPG)
+  Seite 1 – individuelles Cover-Bild pro Gast (Pfad aus Excel-Spalte 'cover_image')
   Seite 2 – Einladungstext aus einem konfigurierbaren Template
 
+Das Cover-Bild wird typischerweise von src/generate_invite.py erzeugt und der
+relative Pfad in der Excel-Spalte 'cover_image' hinterlegt.
+
 Synopsis:
-    python scripts/generate_invitations.py --image einladung.jpg [OPTIONEN]
+    python scripts/generate_invitations.py [OPTIONEN]
 
 Beispiele:
-    # Alle Gäste, Standard-Template, Bild auf Seite 1
-    python scripts/generate_invitations.py --image flyer.jpg
+    # Bilder aus Excel-Spalte 'cover_image', Standard-Template
+    python scripts/generate_invitations.py
 
-    # Nur Kategorie 'Familie', eigenes Template, creme Hintergrund
+    # Eigene Spaltenbezeichnung für das Cover-Bild
+    python scripts/generate_invitations.py --col-cover-image bild_pfad
+
+    # Fallback-Bild für Gäste ohne Eintrag in der Bildspalte
+    python scripts/generate_invitations.py --image fallback.jpg
+
+    # Nur Kategorie 'Familie', creme Hintergrund, eigenes Template
     python scripts/generate_invitations.py \\
-        --image flyer.jpg \\
         --template mein_text.txt \\
         --filter-kategorie Familie \\
         --bg-color '#fffef5' --text-color '#2c2c2c'
 
     # Vorschau ohne Dateien zu erzeugen
-    python scripts/generate_invitations.py --image flyer.jpg --dry-run
+    python scripts/generate_invitations.py --dry-run
 
 Platzhalter im Template:
     {name}          Vorname(n)  (Excel-Spalte 'name')
@@ -160,29 +168,36 @@ _HEADER_MAP = {
     "email": "email",
     "telephone": "telephone",
     "notify_admin": "notify_admin",
+    "cover_image": "cover_image",  # per-guest cover image path
     "text": "text",
 }
 
 
-def _build_col_map(header_row: tuple) -> dict[int, str]:
+def _build_col_map(
+    header_row: tuple,
+    extra_aliases: dict[str, str] | None = None,
+) -> dict[int, str]:
     """
     Build a mapping {column_index: internal_key} from the header row.
 
     Rules
     -----
     * Named columns are matched case-insensitively (see _HEADER_MAP).
+    * extra_aliases can map additional normalised header names to internal keys
+      (used e.g. to support a custom column name for cover_image).
     * If 'name' appears a second time it is mapped to 'full_name'
       (the second occurrence usually contains the fully formatted name).
     * The hash column has no header label – it is auto-detected later
       from the first data row.
     """
+    combined = {**_HEADER_MAP, **(extra_aliases or {})}
     col_map: dict[int, str] = {}
     seen_name = False
 
     for idx, cell in enumerate(header_row):
         norm = normalize_header(cell)
-        if norm in _HEADER_MAP:
-            key = _HEADER_MAP[norm]
+        if norm in combined:
+            key = combined[norm]
             if key == "name" and seen_name:
                 col_map[idx] = "full_name"
             else:
@@ -205,7 +220,11 @@ def _detect_hash_col(col_map: dict[int, str], first_data_row: tuple) -> dict[int
     return col_map
 
 
-def read_excel(excel_path: str, sheet_name: str) -> list[dict]:
+def read_excel(
+    excel_path: str,
+    sheet_name: str,
+    extra_aliases: dict[str, str] | None = None,
+) -> list[dict]:
     """
     Read *sheet_name* from *excel_path* and return a list of row dicts.
     Empty rows are skipped.
@@ -231,7 +250,7 @@ def read_excel(excel_path: str, sheet_name: str) -> list[dict]:
         sys.exit("Das Tabellenblatt ist leer.")
 
     header_row = rows[0]
-    col_map = _build_col_map(header_row)
+    col_map = _build_col_map(header_row, extra_aliases)
 
     if len(rows) > 1:
         col_map = _detect_hash_col(col_map, rows[1])
@@ -249,7 +268,11 @@ def read_excel(excel_path: str, sheet_name: str) -> list[dict]:
     return records
 
 
-def show_column_mapping(excel_path: str, sheet_name: str) -> None:
+def show_column_mapping(
+    excel_path: str,
+    sheet_name: str,
+    extra_aliases: dict[str, str] | None = None,
+) -> None:
     """Print the detected column mapping and exit (--show-columns)."""
     wb = openpyxl.load_workbook(excel_path, data_only=True, read_only=True)
     ws = wb[sheet_name]
@@ -257,7 +280,7 @@ def show_column_mapping(excel_path: str, sheet_name: str) -> None:
     wb.close()
 
     header_row = rows[0] if rows else ()
-    col_map = _build_col_map(header_row)
+    col_map = _build_col_map(header_row, extra_aliases)
     if len(rows) > 1:
         col_map = _detect_hash_col(col_map, rows[1])
 
@@ -406,16 +429,49 @@ def _draw_text_page(
             y -= leading
 
 
+def _resolve_cover_image(
+    record: dict,
+    image_dir: Path,
+    fallback: str | None,
+) -> str | None:
+    """
+    Return the absolute path to the cover image for this record.
+
+    Priority
+    --------
+    1. 'cover_image' field from the Excel row  (resolved relative to image_dir)
+    2. fallback  (the global --image argument, already an absolute path)
+    3. None  (page 1 will be blank)
+    """
+    raw = record.get("cover_image", "").strip()
+    if raw:
+        candidate = (image_dir / raw).resolve()
+        if candidate.exists():
+            return str(candidate)
+        print(
+            f"  Warnung: Cover-Bild nicht gefunden: {candidate}  "
+            "– verwende Fallback.",
+            file=sys.stderr,
+        )
+    return fallback
+
+
 def generate_pdf(
     record: dict,
     template: str,
-    image_path: str | None,
+    fallback_image: str | None,
     output_path: Path,
     page_size: tuple,
     cfg: dict,
 ) -> None:
     """Generate a two-page invitation PDF for one guest record."""
     page_w, page_h = page_size
+
+    image_path = _resolve_cover_image(
+        record,
+        cfg["image_dir"],
+        fallback_image,
+    )
 
     # Build placeholder dict from the record
     invite_hash = record.get("invite_hash", "")
@@ -463,7 +519,7 @@ def generate_pdf(
     # Build the PDF
     c = rl_canvas.Canvas(str(output_path), pagesize=page_size)
 
-    # --- Page 1: cover image (or blank) ---
+    # --- Page 1: per-guest cover image (or blank if none available) ---
     if image_path:
         _draw_cover_page(c, image_path, page_w, page_h, cfg.get("image_fit", "fill"))
     else:
@@ -506,9 +562,23 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Tabellenblatt  (Standard: {DEFAULT_SHEET})",
     )
     io.add_argument(
+        "--col-cover-image",
+        default="cover_image",
+        metavar="SPALTE",
+        help="Name der Excel-Spalte mit dem Bildpfad pro Gast  "
+             "(Standard: cover_image)",
+    )
+    io.add_argument(
+        "--image-dir",
+        default=None,
+        metavar="VERZEICHNIS",
+        help="Basis-Verzeichnis für relative Bildpfade aus der Excel-Spalte. "
+             "Standard: Verzeichnis der Excel-Datei.",
+    )
+    io.add_argument(
         "--image",
         metavar="BILD.jpg",
-        help="JPG/PNG-Bild für Seite 1 der Einladung",
+        help="Fallback-Bild für Gäste ohne Eintrag in der cover_image-Spalte.",
     )
     io.add_argument(
         "--template",
@@ -655,23 +725,32 @@ def main() -> None:
     if not excel_path.exists():
         sys.exit(f"Excel-Datei nicht gefunden: {excel_path}")
 
+    # ---- Extra column alias for cover_image ----
+    extra_aliases: dict[str, str] = {}
+    col_cover = args.col_cover_image.strip().lower()
+    if col_cover != "cover_image":
+        extra_aliases[col_cover] = "cover_image"
+
     # ---- --show-columns: just print column mapping and exit ----
     if args.show_columns:
-        show_column_mapping(str(excel_path), args.sheet)
+        show_column_mapping(str(excel_path), args.sheet, extra_aliases)
         return
 
-    # ---- Image ----
-    image_path: str | None = None
+    # ---- Image base directory ----
+    if args.image_dir:
+        image_dir = Path(args.image_dir)
+        if not image_dir.is_dir():
+            sys.exit(f"--image-dir ist kein gültiges Verzeichnis: {args.image_dir}")
+    else:
+        image_dir = excel_path.parent  # default: same directory as the Excel file
+
+    # ---- Fallback image (--image) ----
+    fallback_image: str | None = None
     if args.image:
         img = Path(args.image)
         if not img.exists():
-            sys.exit(f"Bild-Datei nicht gefunden: {args.image}")
-        image_path = str(img.resolve())
-    else:
-        print(
-            "Hinweis: Kein --image angegeben – Seite 1 bleibt leer.",
-            file=sys.stderr,
-        )
+            sys.exit(f"Fallback-Bild nicht gefunden: {args.image}")
+        fallback_image = str(img.resolve())
 
     # ---- Template ----
     if args.use_text_column:
@@ -723,12 +802,13 @@ def main() -> None:
         "base_url": args.base_url,
         "event_id": args.event_id,
         "image_fit": args.image_fit,
+        "image_dir": image_dir,
         "use_text_column": args.use_text_column,
     }
 
     # ---- Read Excel ----
     print(f"Lese Excel: {excel_path}  (Blatt: '{args.sheet}')")
-    records = read_excel(str(excel_path), args.sheet)
+    records = read_excel(str(excel_path), args.sheet, extra_aliases)
     print(f"  {len(records)} Zeile(n) gefunden.")
 
     # ---- Apply filters ----
@@ -764,7 +844,8 @@ def main() -> None:
 
         if args.dry_run:
             full_name = record.get("full_name") or f"{name} {record.get('nachname', '')}".strip()
-            print(f"  [dry-run] {output_path}  ({full_name})")
+            cover = record.get("cover_image", "") or f"(Fallback: {fallback_image or 'leer'})"
+            print(f"  [dry-run] {output_path}  ({full_name})  Bild: {cover}")
             generated += 1
             continue
 
@@ -772,7 +853,7 @@ def main() -> None:
             print(f"  Erstelle: {output_path}")
 
         try:
-            generate_pdf(record, template, image_path, output_path, page_size, cfg)
+            generate_pdf(record, template, fallback_image, output_path, page_size, cfg)
             generated += 1
         except Exception as exc:
             print(
