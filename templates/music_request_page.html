@@ -1,5 +1,56 @@
 {% extends "base.html" %}
 
+{% block scripts %}
+<style>
+#submit-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+#submit-overlay.active {
+    display: flex;
+}
+#submit-overlay .overlay-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 2rem 2.5rem;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+    max-width: 320px;
+}
+</style>
+
+<div id="submit-overlay">
+    <div class="overlay-box">
+        <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;">
+            <span class="visually-hidden">Laden...</span>
+        </div>
+        <p class="mb-1 fw-bold fs-5">Angaben werden verarbeitet</p>
+        <p class="text-muted mb-0">Bitte warten&nbsp;&hellip;</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const musicForm = document.getElementById('music-request-form');
+    if (musicForm) {
+        musicForm.addEventListener('submit', function () {
+            document.getElementById('submit-overlay').classList.add('active');
+            const btn = musicForm.querySelector('[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Wird gesendet\u2026';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="mt-3">
     <h1>🎵 Musikwünsche - {{ event.name }}</h1>
@@ -10,7 +61,7 @@
             <h3 class="mb-0">✨ Neuer Musikwunsch</h3>
         </div>
         <div class="card-body">
-            <form method="POST">
+            <form method="POST" id="music-request-form">
                 {{ form.hidden_tag() }}
                 <div class="mb-3">
                     {{ form.artist.label(class="form-label") }}

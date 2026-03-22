@@ -19,7 +19,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <h4 class="card-title">Deine Rückmeldung</h4>
-                <form method="post">
+                <form method="post" id="invite-form">
                     {{ form.hidden_tag() }}
                     <div class="mb-3">
                         {{ form.status.label(class_='form-label') }}
@@ -57,6 +57,55 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+#submit-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+#submit-overlay.active {
+    display: flex;
+}
+#submit-overlay .overlay-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 2rem 2.5rem;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+    max-width: 320px;
+}
+</style>
+
+<div id="submit-overlay">
+    <div class="overlay-box">
+        <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;">
+            <span class="visually-hidden">Laden...</span>
+        </div>
+        <p class="mb-1 fw-bold fs-5">Angaben werden verarbeitet</p>
+        <p class="text-muted mb-0">Bitte warten&nbsp;&hellip;</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const inviteForm = document.getElementById('invite-form');
+    if (inviteForm) {
+        inviteForm.addEventListener('submit', function () {
+            document.getElementById('submit-overlay').classList.add('active');
+            const btn = inviteForm.querySelector('[type="submit"]');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Wird gesendet\u2026';
+            }
+        });
+    }
+});
+</script>
+
 <script>
     const countdownEl = document.getElementById('countdown');
     if (countdownEl) {
