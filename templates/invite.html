@@ -19,16 +19,19 @@
         <div class="card h-100">
             <div class="card-body">
                 <h4 class="card-title">Deine Rückmeldung</h4>
-                <form method="post" id="invite-form">
+                <form method="post" id="invite-form" data-max-persons="{{ guest.max_persons }}">
                     {{ form.hidden_tag() }}
                     <div class="mb-3">
                         {{ form.status.label(class_='form-label') }}
                         {{ form.status(class_='form-select') }}
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3" id="confirmed-persons-group">
                         {{ form.confirmed_persons.label(class_='form-label') }}
-                        {{ form.confirmed_persons(class_='form-control', max=guest.max_persons) }}
+                        {{ form.confirmed_persons(class_='form-control', max=guest.max_persons, min=1) }}
                         <div class="form-text">Bitte maximal {{ guest.max_persons }} Personen eintragen.</div>
+                        <div class="text-danger mt-1" id="persons-error" style="display:none;">
+                            Bitte gib an, wie viele Personen kommen (mindestens 1).
+                        </div>
                     </div>
                     <div class="mb-3">
                         {{ form.notes.label(class_='form-label') }}
@@ -93,16 +96,51 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const inviteForm = document.getElementById('invite-form');
-    if (inviteForm) {
-        inviteForm.addEventListener('submit', function () {
-            document.getElementById('submit-overlay').classList.add('active');
-            const btn = inviteForm.querySelector('[type="submit"]');
-            if (btn) {
-                btn.disabled = true;
-                btn.textContent = 'Wird gesendet\u2026';
+    if (!inviteForm) return;
+
+    const maxPersons = parseInt(inviteForm.dataset.maxPersons, 10);
+    const statusEl = document.getElementById('status');
+    const personsGroup = document.getElementById('confirmed-persons-group');
+    const personsEl = document.getElementById('confirmed_persons');
+    const personsError = document.getElementById('persons-error');
+
+    function updatePersonsVisibility() {
+        if (statusEl.value === 'zusage') {
+            if (maxPersons === 1) {
+                personsEl.value = 1;
+                personsGroup.style.display = 'none';
+            } else {
+                personsGroup.style.display = '';
+                personsEl.focus();
             }
-        });
+        } else {
+            personsGroup.style.display = 'none';
+        }
     }
+
+    statusEl.addEventListener('change', updatePersonsVisibility);
+    updatePersonsVisibility();
+
+    inviteForm.addEventListener('submit', function (e) {
+        if (statusEl.value === 'zusage') {
+            if (maxPersons === 1) {
+                personsEl.value = 1;
+            } else if (!personsEl.value || parseInt(personsEl.value, 10) < 1) {
+                e.preventDefault();
+                personsError.style.display = 'block';
+                personsGroup.style.display = '';
+                personsEl.focus();
+                return;
+            }
+        }
+        personsError.style.display = 'none';
+        document.getElementById('submit-overlay').classList.add('active');
+        const btn = inviteForm.querySelector('[type="submit"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Wird gesendet\u2026';
+        }
+    });
 });
 </script>
 
