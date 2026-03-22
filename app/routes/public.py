@@ -95,32 +95,45 @@ def invite(event_id: int, code: str) -> Response | str:
     if form.validate_on_submit():
         guest_status = form.status.data
         guest_notes = form.notes.data
-        confirmed = min(form.confirmed_persons.data or 0, guest.max_persons) if guest_status == "zusage" else 0
-        guest.notes = guest_notes
-        guest.status = guest_status
-        guest.confirmed_persons = confirmed
-        db.session.commit()
-        if guest.notify_admin:
-            admins = AdminUser.query.filter(
-                (AdminUser.event_id == event.id) | (AdminUser.role == "super_admin")
-            ).all()
-            recipients = [admin.email for admin in admins if admin.email]
-            if recipients:
-                notes_html = ""
-                if guest_notes:
-                    notes_html = f"<p><strong>Besondere Hinweise:</strong> {escape(guest_notes)}</p>"
-                sent, error = send_email(
-                    subject=f"Status-Update von {guest.first_name} {guest.last_name or ''}",
-                    recipients=recipients,
-                    html_body=(
-                        f"<p>{guest.first_name} {guest.last_name or ''} hat den Status auf <strong>{guest_status}</strong>"
-                        f" gesetzt.</p><p>Personen: {confirmed}/{guest.max_persons}</p>{notes_html}"
-                    ),
-                )
-                if not sent:
-                    current_app.logger.warning("Status-Update konnte nicht per E-Mail versendet werden: %s", error)
-        flash("Danke für deine Rückmeldung!", "success")
-        return redirect(url_for("public.invite", event_id=event_id, code=code))
+        confirmed = 0
+        save_ok = True
+
+        if guest_status == "zusage":
+            persons = form.confirmed_persons.data or 0
+            if guest.max_persons == 1:
+                confirmed = 1
+            elif persons < 1:
+                flash("Bitte gib an, wie viele Personen kommen (mindestens 1).", "danger")
+                save_ok = False
+            else:
+                confirmed = min(persons, guest.max_persons)
+
+        if save_ok:
+            guest.notes = guest_notes
+            guest.status = guest_status
+            guest.confirmed_persons = confirmed
+            db.session.commit()
+            if guest.notify_admin:
+                admins = AdminUser.query.filter(
+                    (AdminUser.event_id == event.id) | (AdminUser.role == "super_admin")
+                ).all()
+                recipients = [admin.email for admin in admins if admin.email]
+                if recipients:
+                    notes_html = ""
+                    if guest_notes:
+                        notes_html = f"<p><strong>Besondere Hinweise:</strong> {escape(guest_notes)}</p>"
+                    sent, error = send_email(
+                        subject=f"Status-Update von {guest.first_name} {guest.last_name or ''}",
+                        recipients=recipients,
+                        html_body=(
+                            f"<p>{guest.first_name} {guest.last_name or ''} hat den Status auf <strong>{guest_status}</strong>"
+                            f" gesetzt.</p><p>Personen: {confirmed}/{guest.max_persons}</p>{notes_html}"
+                        ),
+                    )
+                    if not sent:
+                        current_app.logger.warning("Status-Update konnte nicht per E-Mail versendet werden: %s", error)
+            flash("Danke für deine Rückmeldung!", "success")
+            return redirect(url_for("public.invite", event_id=event_id, code=code))
 
     if request.method == "GET":
         form.status.data = getattr(guest, "status", "save_the_date")
