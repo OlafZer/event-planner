@@ -33,7 +33,13 @@ def create_app() -> Flask:
 
     base_dir = Path(__file__).resolve().parent.parent
     template_dir = base_dir / "templates"
-    app = Flask(__name__, template_folder=str(template_dir))
+    static_dir = base_dir / "static"
+    app = Flask(
+        __name__,
+        template_folder=str(template_dir),
+        static_folder=str(static_dir),
+        static_url_path="/static",
+    )
     app.config.from_object(get_config())
     _configure_logging(app)
 
