@@ -65,16 +65,36 @@ def music_request_page(event_id: int, code: str) -> Response | str:
 
     form = MusicRequestForm()
     if form.validate_on_submit():
+        artist = form.artist.data.strip()
+        title = form.title.data.strip()
+
+        duplicate = MusicRequest.query.filter(
+            MusicRequest.event_id == event.id,
+            MusicRequest.guest_id == guest.id,
+            db.func.lower(MusicRequest.artist) == artist.lower(),
+            db.func.lower(MusicRequest.title) == title.lower(),
+        ).first()
+
+        if duplicate:
+            flash(
+                f"Dieser Musikwunsch wurde bereits gespeichert: "
+                f"\"{duplicate.artist} – {duplicate.title}\" "
+                f"(eingereicht am {duplicate.created_at.strftime('%d.%m.%Y um %H:%M')} Uhr). "
+                f"Bitte keinen Wunsch doppelt eintragen.",
+                "warning",
+            )
+            return redirect(url_for("music_public.music_request_page", event_id=event_id, code=code))
+
         music_request = MusicRequest(
             event_id=event.id,
             guest_id=guest.id,
-            artist=form.artist.data.strip(),
-            title=form.title.data.strip(),
+            artist=artist,
+            title=title,
             notes=form.notes.data.strip() if form.notes.data else None,
         )
         db.session.add(music_request)
         db.session.commit()
-        flash(f"Musikwunsch gespeichert: {music_request.artist} - {music_request.title}", "success")
+        flash(f"Musikwunsch gespeichert: {music_request.artist} – {music_request.title}", "success")
         return redirect(url_for("music_public.music_request_page", event_id=event_id, code=code))
 
     guest_requests = (
